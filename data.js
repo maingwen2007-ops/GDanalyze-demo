@@ -491,3 +491,14 @@ window.GD_WEEKLY_CHALLENGES = [
     participants: 642
   }
 ];
+
+// Gộp 1.000 màn chơi Demon ngẫu nhiên đã trích xuất từ Pointercrate & GDBrowser vào GD_LEVELS
+if (Array.isArray(window.GD_EXTRACTED_DEMONS)) {
+  const existingIds = new Set(window.GD_LEVELS.map((l) => String(l.gd_level_id)));
+  window.GD_EXTRACTED_DEMONS.forEach((d) => {
+    if (!existingIds.has(String(d.gd_level_id))) {
+      existingIds.add(String(d.gd_level_id));
+      window.GD_LEVELS.push(d);
+    }
+  });
+}

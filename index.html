@@ -293,6 +293,38 @@
               </div>
             </section>
 
+            <!-- Mục 4: Kho dữ liệu 1.000 màn chơi Demon ngẫu nhiên (Pointercrate & GDBrowser) -->
+            <section id="sec-demon-explorer" class="gd-card">
+              <div class="card-title">
+                <span>4. Kho dữ liệu Demon (<span id="catalog-total-count">1,000+</span> màn)</span>
+                <span class="gd-badge">Nguồn: Pointercrate &amp; GDBrowser</span>
+              </div>
+              <p class="card-desc">
+                Tra cứu trực tiếp hơn 1.000 màn chơi Demon đã trích xuất. Bạn có thể tìm theo tên, tác giả, Level ID, lọc theo hạng Demon và chọn làm màn mục tiêu ngay.
+              </p>
+
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <input id="catalog-search-input" type="text" class="gd-input" placeholder="Tìm tên màn, tác giả, hoặc GD Level ID..." />
+                <select id="catalog-tier-select" class="gd-select">
+                  <option value="ALL">Tất cả hạng Demon</option>
+                  <option value="extreme">Extreme Demon (Pointercrate)</option>
+                  <option value="insane">Insane Demon</option>
+                  <option value="hard">Hard Demon</option>
+                  <option value="medium">Medium Demon</option>
+                  <option value="easy">Easy Demon</option>
+                </select>
+              </div>
+
+              <div id="catalog-stats-bar" style="font-size: 0.83rem; color: var(--text-muted); margin-bottom: 12px;"></div>
+              <div id="catalog-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 12px;"></div>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
+                <button id="catalog-prev-btn" class="btn-secondary">← Trang trước</button>
+                <span id="catalog-page-info" style="font-size: 0.86rem; color: var(--text-secondary);">Trang 1</span>
+                <button id="catalog-next-btn" class="btn-secondary">Trang sau →</button>
+              </div>
+            </section>
+
           </div>
         </div>
 
@@ -381,6 +413,7 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts -->
+  <script src="demons-1000.js"></script>
   <script src="data.js"></script>
   <script src="minigames.js"></script>
   <script src="app.js"></script>

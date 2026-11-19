@@ -793,7 +793,8 @@
       toc: [
         { href: '#sec-sweetspot', label: '1. Màn gợi ý vừa sức' },
         { href: '#sec-roadmap', label: '2. Lộ trình màn mục tiêu' },
-        { href: '#sec-weekly', label: '3. Thử thách tuần & Bạn bè' }
+        { href: '#sec-weekly', label: '3. Thử thách tuần & Bạn bè' },
+        { href: '#sec-demon-explorer', label: '4. Kho 1,000 Demon' }
       ]
     },
     forum: {
@@ -1070,12 +1071,126 @@
       });
     }
 
+    // Kho dữ liệu 1.000 màn chơi Demon ngẫu nhiên (Tìm kiếm, Lọc hạng, Phân trang)
+    let catalogPage = 1;
+    const CATALOG_PAGE_SIZE = 12;
+
+    function renderDemonCatalog() {
+      const listEl = document.getElementById('catalog-list');
+      const totalBadge = document.getElementById('catalog-total-count');
+      const statsBar = document.getElementById('catalog-stats-bar');
+      const pageInfo = document.getElementById('catalog-page-info');
+      const searchEl = document.getElementById('catalog-search-input');
+      const tierEl = document.getElementById('catalog-tier-select');
+      if (!listEl) return;
+
+      const allDemons = window.GD_LEVELS.filter((l) => !l.is_challenge);
+      if (totalBadge) totalBadge.textContent = allDemons.length.toLocaleString('vi-VN');
+
+      const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+      const tier = tierEl ? tierEl.value : 'ALL';
+
+      const filtered = allDemons.filter((l) => {
+        const matchTier = tier === 'ALL' || l.diff_tier === tier;
+        const matchQuery =
+          !q ||
+          l.name.toLowerCase().includes(q) ||
+          (l.creator && l.creator.toLowerCase().includes(q)) ||
+          String(l.gd_level_id).includes(q);
+        return matchTier && matchQuery;
+      });
+
+      const totalPages = Math.max(1, Math.ceil(filtered.length / CATALOG_PAGE_SIZE));
+      if (catalogPage > totalPages) catalogPage = totalPages;
+      const start = (catalogPage - 1) * CATALOG_PAGE_SIZE;
+      const pageItems = filtered.slice(start, start + CATALOG_PAGE_SIZE);
+
+      if (statsBar) {
+        statsBar.textContent = `Tìm thấy ${filtered.length.toLocaleString('vi-VN')} màn chơi Demon phù hợp (hiển thị ${pageItems.length} màn/trang).`;
+      }
+      if (pageInfo) {
+        pageInfo.textContent = `Trang ${catalogPage} / ${totalPages}`;
+      }
+
+      listEl.innerHTML = pageItems
+        .map(
+          (lvl) => `
+          <div class="skill-slider-item" style="display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+            <div>
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px;">
+                <span class="diff-pill diff-${lvl.diff_tier}">${lvl.official_difficulty}</span>
+                <span class="level-id-pill" data-copy-id="${lvl.gd_level_id}" title="Click để copy ID">ID: ${lvl.gd_level_id} 📋</span>
+              </div>
+              <div style="font-weight: 800; font-size: 1rem; margin-bottom: 3px;">${lvl.name}</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">
+                Tác giả: <strong>${lvl.creator}</strong> • ${lvl.community_difficulty}
+              </div>
+              <div style="font-size: 0.78rem; color: var(--text-secondary);">
+                Timing ${lvl.skills.timing} • Wave ${lvl.skills.wave} • Ship ${lvl.skills.ship} • UFO ${lvl.skills.ufo}
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <button class="btn-secondary btn-set-catalog-target" data-level-id="${lvl.id}" style="flex: 1; padding: 6px 10px; font-size: 0.78rem;">
+                🎯 Đặt làm mục tiêu
+              </button>
+              <button class="btn-primary btn-log-catalog-level" data-level-id="${lvl.id}" style="padding: 6px 10px; font-size: 0.78rem;">
+                + Đã qua
+              </button>
+            </div>
+          </div>`
+        )
+        .join('');
+
+      bindCopyIdButtons(listEl);
+
+      listEl.querySelectorAll('.btn-set-catalog-target').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const lid = btn.getAttribute('data-level-id');
+          state.targetLevelId = lid;
+          const sel = document.getElementById('roadmap-target-select');
+          if (sel) sel.value = lid;
+          saveState();
+          renderTargetRoadmap();
+          showToast('Đã đặt màn này làm mục tiêu trong Lộ trình Challenge!');
+          document.getElementById('sec-roadmap')?.scrollIntoView({ behavior: 'smooth' });
+        });
+      });
+
+      listEl.querySelectorAll('.btn-log-catalog-level').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const lid = btn.getAttribute('data-level-id');
+          addPlayHistoryEntry(lid, 100, 200);
+          showToast('Đã lưu hoàn thành màn và cập nhật điểm Elo!');
+        });
+      });
+    }
+
+    document.getElementById('catalog-search-input')?.addEventListener('input', () => {
+      catalogPage = 1;
+      renderDemonCatalog();
+    });
+    document.getElementById('catalog-tier-select')?.addEventListener('change', () => {
+      catalogPage = 1;
+      renderDemonCatalog();
+    });
+    document.getElementById('catalog-prev-btn')?.addEventListener('click', () => {
+      if (catalogPage > 1) {
+        catalogPage--;
+        renderDemonCatalog();
+      }
+    });
+    document.getElementById('catalog-next-btn')?.addEventListener('click', () => {
+      catalogPage++;
+      renderDemonCatalog();
+    });
+
     // Render toàn bộ giao diện lần đầu
     renderQuickChallengeButtons();
     renderSkillSliders();
     renderPlayHistory();
     renderCurrentProfileSection();
     renderRecommendationsAndRoadmap();
+    renderDemonCatalog();
     renderForum();
     switchTab(state.activeTab || 'profile');
   });
