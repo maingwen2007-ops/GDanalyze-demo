@@ -410,10 +410,6 @@
             <span class="gd-badge">${deltaText}</span>
           </div>
 
-          <div class="why-recommend-box">
-            💡 <strong>Vì sao gợi ý màn này?</strong> Bạn rất mạnh <strong>${strongest.label} (${strongest.val})</strong> nhưng đang cần cải thiện <strong>${weakest.label} (${weakest.val})</strong> và <strong>${secondWeakest.label} (${secondWeakest.val})</strong>. Màn <em>${lvl.name}</em> yêu cầu ${weakest.label} ở mức <strong>${lvl.skills[weakest.key]}/100</strong> và ${secondWeakest.label} ở mức <strong>${lvl.skills[secondWeakest.key]}/100</strong> — vừa đủ để bạn nâng trình mà không bị ngợp!
-          </div>
-
           <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
             ${window.GD_SKILLS.slice(0, 6)
               .map(
