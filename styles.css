@@ -1,60 +1,60 @@
 :root {
-  --bg-topbar: #351f5e;
-  --bg-topbar-border: rgba(255, 255, 255, 0.08);
-  --bg-dropdown: #53387e;
-  --bg-body-start: #1c1036;
-  --bg-body-mid: #231344;
-  --bg-body-end: #100720;
-  --bg-card: rgba(21, 11, 38, 0.88);
-  --bg-card-inner: rgba(34, 19, 59, 0.75);
-  --bg-sidebar: #160d29;
-  --bg-sidebar-cap: #493b68;
-  --border-card: rgba(152, 104, 240, 0.24);
-  --border-card-hover: rgba(176, 128, 255, 0.5);
-  --accent-orange: #ff9900;
-  --accent-purple-btn: #a66eff;
-  --accent-purple-btn-hover: #b88aff;
+  --bg-topbar: #472882;
+  --bg-topbar-border: rgba(255, 255, 255, 0.14);
+  --bg-dropdown: #6543a3;
+  --bg-body-start: #2d1a5e;
+  --bg-body-mid: #432485;
+  --bg-body-end: #1c0e3d;
+  --bg-card: rgba(34, 18, 64, 0.84);
+  --bg-card-inner: rgba(52, 29, 94, 0.72);
+  --bg-sidebar: #241447;
+  --bg-sidebar-cap: #684ca3;
+  --border-card: rgba(182, 138, 255, 0.34);
+  --border-card-hover: rgba(204, 168, 255, 0.62);
+  --accent-orange: #ffaa1d;
+  --accent-purple-btn: #b37eff;
+  --accent-purple-btn-hover: #c59bff;
   --accent-purple-text: #160929;
   --accent-cyan: #38bdf8;
   --accent-green: #34d399;
   --accent-red: #fb7185;
   --text-primary: #ffffff;
-  --text-secondary: #cbbce6;
-  --text-muted: #9886b8;
-  --shadow-card: 0 14px 34px rgba(5, 2, 12, 0.55);
+  --text-secondary: #dcd0f5;
+  --text-muted: #b09ed4;
+  --shadow-card: 0 14px 34px rgba(14, 6, 34, 0.45);
   --radius-lg: 14px;
   --radius-md: 10px;
   --radius-sm: 8px;
 }
 
 body[data-theme="neon-demon"] {
-  --bg-topbar: #3b0d26;
-  --bg-dropdown: #59163a;
-  --bg-body-start: #210715;
-  --bg-body-mid: #2e0b1f;
-  --bg-body-end: #0f030a;
-  --bg-card: rgba(28, 8, 20, 0.9);
-  --bg-card-inner: rgba(48, 13, 33, 0.75);
-  --bg-sidebar: #1f0815;
-  --bg-sidebar-cap: #6e2b4e;
-  --border-card: rgba(244, 63, 94, 0.28);
-  --accent-orange: #ff5500;
+  --bg-topbar: #59163a;
+  --bg-dropdown: #7a2150;
+  --bg-body-start: #380e25;
+  --bg-body-mid: #541638;
+  --bg-body-end: #1f0714;
+  --bg-card: rgba(46, 14, 32, 0.86);
+  --bg-card-inner: rgba(69, 21, 49, 0.75);
+  --bg-sidebar: #300c20;
+  --bg-sidebar-cap: #963b6b;
+  --border-card: rgba(251, 113, 133, 0.36);
+  --accent-orange: #ff6a1a;
   --accent-purple-btn: #fb7185;
   --accent-purple-btn-hover: #fda4af;
 }
 
 body[data-theme="cyber-wave"] {
-  --bg-topbar: #0f2942;
-  --bg-dropdown: #1a3f63;
-  --bg-body-start: #081829;
-  --bg-body-mid: #0c233b;
-  --bg-body-end: #040d17;
-  --bg-card: rgba(9, 22, 38, 0.9);
-  --bg-card-inner: rgba(16, 36, 60, 0.78);
-  --bg-sidebar: #0a192b;
-  --bg-sidebar-cap: #2d557d;
-  --border-card: rgba(56, 189, 248, 0.26);
-  --accent-orange: #f59e0b;
+  --bg-topbar: #163d61;
+  --bg-dropdown: #235887;
+  --bg-body-start: #0f2a45;
+  --bg-body-mid: #174069;
+  --bg-body-end: #081829;
+  --bg-card: rgba(15, 36, 61, 0.86);
+  --bg-card-inner: rgba(23, 52, 87, 0.76);
+  --bg-sidebar: #112a47;
+  --bg-sidebar-cap: #3c73ab;
+  --border-card: rgba(56, 189, 248, 0.36);
+  --accent-orange: #fbbf24;
   --accent-purple-btn: #38bdf8;
   --accent-purple-btn-hover: #7dd3fc;
 }
@@ -88,7 +88,10 @@ html {
 
 body {
   font-family: 'Inter', 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: radial-gradient(ellipse at 55% 25%, var(--bg-body-mid) 0%, var(--bg-body-start) 55%, var(--bg-body-end) 100%);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(179, 126, 255, 0.24) 0%, transparent 42%),
+    radial-gradient(circle at 85% 22%, rgba(56, 189, 248, 0.16) 0%, transparent 40%),
+    radial-gradient(ellipse at 55% 25%, var(--bg-body-mid) 0%, var(--bg-body-start) 55%, var(--bg-body-end) 100%);
   color: var(--text-primary);
   min-height: 100vh;
   line-height: 1.55;
