@@ -345,6 +345,18 @@
                   </select>
                 </div>
                 <textarea id="post-content-input" rows="3" class="gd-textarea" placeholder="Chia sẻ chi tiết kinh nghiệm, vị trí đặt Start Pos, hoặc nhịp click của bạn..."></textarea>
+
+                <!-- Đính kèm Hình ảnh / Video / Link YouTube -->
+                <div class="media-attach-bar">
+                  <label for="post-media-file" class="btn-secondary media-upload-label">
+                    🖼️ Chọn Ảnh / 🎬 Video từ máy
+                  </label>
+                  <input id="post-media-file" type="file" accept="image/*,video/*" multiple hidden />
+                  <input id="post-media-url" type="url" class="gd-input" placeholder="Hoặc dán link YouTube, link ảnh (.png/.jpg), link video (.mp4)..." style="flex: 1; min-width: 220px;" />
+                  <button id="btn-add-media-url" type="button" class="btn-secondary">+ Thêm link</button>
+                </div>
+                <div id="post-media-preview" class="media-preview-grid"></div>
+
                 <div>
                   <button id="btn-publish-post" class="btn-primary">Đăng bài lên cộng đồng</button>
                 </div>
@@ -396,6 +408,11 @@
       </aside>
     </div>
   </main>
+
+  <!-- Lightbox xem ảnh phóng to trên Diễn đàn -->
+  <div id="media-lightbox" class="media-lightbox" onclick="this.classList.remove('open')">
+    <img id="media-lightbox-img" src="" alt="Xem ảnh phóng to" />
+  </div>
 
   <!-- Toast thông báo nổi -->
   <div id="toast-container" class="toast-container"></div>

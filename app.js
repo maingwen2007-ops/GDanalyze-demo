@@ -675,6 +675,23 @@
 
     listEl.innerHTML = '';
     filtered.forEach((post) => {
+      const mediaHtml =
+        Array.isArray(post.media) && post.media.length > 0
+          ? `<div class="post-media-gallery">
+              ${post.media
+                .map((m) => {
+                  if (m.type === 'youtube') {
+                    return `<div class="post-media-card"><div class="youtube-embed-wrap"><iframe src="https://www.youtube.com/embed/${m.embedId}" allowfullscreen loading="lazy"></iframe></div></div>`;
+                  }
+                  if (m.type === 'video') {
+                    return `<div class="post-media-card"><video src="${m.src}" controls preload="metadata"></video></div>`;
+                  }
+                  return `<div class="post-media-card"><img src="${m.src}" alt="Ảnh minh họa bài viết" class="forum-zoom-img" loading="lazy" /></div>`;
+                })
+                .join('')}
+            </div>`
+          : '';
+
       const card = document.createElement('div');
       card.className = 'forum-post-card';
       card.innerHTML = `
@@ -686,6 +703,7 @@
         </div>
         <div class="post-title">${post.title}</div>
         <div class="post-content">${post.content}</div>
+        ${mediaHtml}
         <div class="post-tags">
           ${(post.tags || []).map((t) => `<span class="tag-badge">${t}</span>`).join('')}
         </div>
@@ -752,6 +770,17 @@
           renderForum();
           const box = document.getElementById(`comments-box-${id}`);
           if (box) box.classList.add('open');
+        }
+      });
+    });
+
+    listEl.querySelectorAll('.forum-zoom-img').forEach((img) => {
+      img.addEventListener('click', () => {
+        const lb = document.getElementById('media-lightbox');
+        const lbImg = document.getElementById('media-lightbox-img');
+        if (lb && lbImg) {
+          lbImg.src = img.src;
+          lb.classList.add('open');
         }
       });
     });
@@ -1020,6 +1049,93 @@
       forumSearch.addEventListener('input', () => renderForum());
     }
 
+    // Quản lý đính kèm Ảnh / Video / Link YouTube cho bài viết Diễn đàn
+    let pendingPostMedia = [];
+
+    function parseMediaUrl(rawUrl) {
+      const url = (rawUrl || '').trim();
+      if (!url) return null;
+      const ytMatch = url.match(
+        /(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+      );
+      if (ytMatch) {
+        return { type: 'youtube', embedId: ytMatch[1], src: url };
+      }
+      if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+        return { type: 'video', src: url };
+      }
+      return { type: 'image', src: url };
+    }
+
+    function renderPendingMediaPreview() {
+      const previewEl = document.getElementById('post-media-preview');
+      if (!previewEl) return;
+      previewEl.innerHTML = pendingPostMedia
+        .map((m, idx) => {
+          let inner = '';
+          if (m.type === 'youtube') {
+            inner = `<img src="https://img.youtube.com/vi/${m.embedId}/hqdefault.jpg" alt="YouTube preview" />`;
+          } else if (m.type === 'video') {
+            inner = `<video src="${m.src}" controls muted></video>`;
+          } else {
+            inner = `<img src="${m.src}" alt="Image preview" />`;
+          }
+          return `<div class="media-preview-item">${inner}<button type="button" class="media-remove-btn" data-media-idx="${idx}" title="Xóa media">✕</button></div>`;
+        })
+        .join('');
+
+      previewEl.querySelectorAll('.media-remove-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const idx = Number(btn.getAttribute('data-media-idx'));
+          pendingPostMedia.splice(idx, 1);
+          renderPendingMediaPreview();
+        });
+      });
+    }
+
+    document.getElementById('post-media-file')?.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      files.forEach((file) => {
+        if (file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            pendingPostMedia.push({ type: 'image', src: ev.target.result });
+            renderPendingMediaPreview();
+          };
+          reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+          if (file.size <= 1.5 * 1024 * 1024) {
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              pendingPostMedia.push({ type: 'video', src: ev.target.result });
+              renderPendingMediaPreview();
+            };
+            reader.readAsDataURL(file);
+          } else {
+            const blobUrl = URL.createObjectURL(file);
+            pendingPostMedia.push({ type: 'video', src: blobUrl });
+            renderPendingMediaPreview();
+            showToast('Video dung lượng lớn đã sẵn sàng phát trong phiên hiện tại!');
+          }
+        }
+      });
+      e.target.value = '';
+    });
+
+    document.getElementById('btn-add-media-url')?.addEventListener('click', () => {
+      const urlInput = document.getElementById('post-media-url');
+      if (!urlInput || !urlInput.value.trim()) {
+        showToast('Vui lòng dán link ảnh, video hoặc YouTube!');
+        return;
+      }
+      const parsed = parseMediaUrl(urlInput.value);
+      if (parsed) {
+        pendingPostMedia.push(parsed);
+        urlInput.value = '';
+        renderPendingMediaPreview();
+      }
+    });
+
     const createPostBtn = document.getElementById('btn-publish-post');
     if (createPostBtn) {
       createPostBtn.addEventListener('click', () => {
@@ -1042,6 +1158,7 @@
           level_name: chosenLvl ? `${chosenLvl.name} (ID: ${chosenLvl.gd_level_id})` : null,
           title: titleEl.value.trim(),
           content: contentEl.value.trim(),
+          media: [...pendingPostMedia],
           tags: [tagEl ? tagEl.value : '#Guide', chosenLvl ? `#${chosenLvl.name.replace(/\s+/g, '')}` : '#GeometryDash'],
           upvotes: 1,
           createdAt: 'Vừa xong',
@@ -1050,9 +1167,11 @@
 
         titleEl.value = '';
         contentEl.value = '';
+        pendingPostMedia = [];
+        renderPendingMediaPreview();
         saveState();
         renderForum();
-        showToast('Đã đăng bài viết lên Diễn đàn cộng đồng GD ANALYZE!');
+        showToast('Đã đăng bài viết kèm media lên Diễn đàn cộng đồng GD ANALYZE!');
       });
     }
 
