@@ -819,7 +819,7 @@
         { href: '#sec-sweetspot', label: '1. Màn gợi ý vừa sức' },
         { href: '#sec-roadmap', label: '2. Lộ trình màn mục tiêu' },
         { href: '#sec-weekly', label: '3. Thử thách tuần & Bạn bè' },
-        { href: '#sec-demon-explorer', label: '4. Kho 8,000+ Demon' }
+        { href: '#sec-demon-explorer', label: '4. Kho 9,000+ Demon' }
       ]
     },
     forum: {
