@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GD ANALYZE — Phân tích trình độ & Gợi ý màn chơi Geometry Dash</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body data-theme="default">
+  <!-- Nền sao vũ trụ (Starfield) -->
+  <canvas id="starfield-canvas"></canvas>
+
+  <!-- Thanh điều hướng trên cùng (Top Navbar) giống ảnh mẫu -->
+  <header class="top-navbar">
+    <div class="navbar-container">
+      <div class="brand-logo" onclick="document.querySelector('[data-tab=profile]').click()">
+        <div class="brand-title">
+          <span class="brand-star">✦</span>
+          <span>GD ANALYZE</span>
+        </div>
+        <span class="brand-subtitle">GEOMETRY DASH</span>
+      </div>
+
+      <div class="nav-actions">
+        <nav class="nav-tabs" aria-label="Điều hướng chính">
+          <button class="nav-tab active" data-tab="profile">Hồ sơ</button>
+          <button class="nav-tab" data-tab="recommend">Gợi ý &amp; lộ trình</button>
+          <button class="nav-tab" data-tab="forum">Diễn đàn</button>
+        </nav>
+
+        <div class="theme-select-wrapper">
+          <select id="theme-select" class="theme-select" aria-label="Chọn giao diện">
+            <option value="default">Mặc định (tối)</option>
+            <option value="neon-demon">Neon Demon (Đỏ tím)</option>
+            <option value="cyber-wave">Cyber Wave (Xanh)</option>
+            <option value="light">Giao diện Sáng</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Khung nội dung chính -->
+  <main class="page-container">
+    <!-- Hero Header giống ảnh mẫu -->
+    <section class="hero-header">
+      <div class="breadcrumb" id="hero-breadcrumb">Trang chủ / Hồ sơ</div>
+      <h1 class="hero-title" id="hero-title">Chơi đúng màn, tiến bộ mỗi ngày</h1>
+      <p class="hero-subtitle" id="hero-subtitle">
+        Cho web biết trình độ của bạn, nhận gợi ý màn vừa sức và lộ trình luyện tới màn mơ ước.
+      </p>
+      <div class="hero-icons" aria-hidden="true">
+        <span>🎮</span>
+        <span>⭐</span>
+        <span>🌈</span>
+        <span>⭐</span>
+        <span>🎮</span>
+      </div>
+    </section>
+
+    <!-- Bố cục 2 cột: Cột chính bên trái + Sidebar Danh mục cố định bên phải -->
+    <div class="content-layout">
+      <!-- CỘT TRÁI: NỘI DUNG THEO TAB -->
+      <div class="main-column">
+
+        <!-- ==================== TAB 1: HỒ SƠ ==================== -->
+        <div id="tab-view-profile" class="tab-view active">
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+
+            <!-- Mục 1: Thử thách nhanh (Quick Challenge) giống ảnh mẫu -->
+            <section id="sec-quick-challenge" class="gd-card">
+              <h2 class="card-title">Thử thách nhanh</h2>
+              <p class="card-desc">
+                6 bài mini, mỗi bài có map riêng. Wave, Ship, UFO được thử tối đa 3 lần, điểm tính theo
+                quãng đường đi xa nhất. Dùng chuột, chạm màn hình hoặc phím Space. Kết quả tự điền
+                vào thanh kỹ năng bên dưới.
+              </p>
+
+              <!-- Lưới 4 nút hàng trên + 2 nút rộng hàng dưới giống hệt ảnh mẫu -->
+              <div class="quick-challenge-grid">
+                <button id="qc-btn-timing" class="qc-btn">Timing ✓ 32</button>
+                <button id="qc-btn-spam_click" class="qc-btn">Spam click ✓ 47</button>
+                <button id="qc-btn-wave" class="qc-btn">Wave ✓ 48</button>
+                <button id="qc-btn-ship" class="qc-btn">Ship ✓ 100</button>
+                <button id="qc-btn-ufo" class="qc-btn span-2">UFO ✓ 100</button>
+                <button id="qc-btn-rhythm" class="qc-btn span-2">Nhịp ✓ 79</button>
+              </div>
+
+              <!-- Khu vực chơi Mini-game trực tiếp khi bấm vào một trong 6 nút -->
+              <div id="minigame-drawer" class="minigame-drawer">
+                <div class="minigame-header">
+                  <div class="minigame-title-group">
+                    <span class="minigame-badge">LIVE MINI-MAP</span>
+                    <strong id="minigame-title">Bài test kỹ năng</strong>
+                  </div>
+                  <div class="minigame-meta">
+                    <span id="minigame-attempt-info">Lượt thử: 0/3</span>
+                    <button id="btn-close-minigame" class="btn-secondary" style="padding: 4px 10px; font-size: 0.78rem;">Đóng ✕</button>
+                  </div>
+                </div>
+
+                <div id="minigame-canvas-wrap" class="minigame-canvas-wrap">
+                  <canvas id="minigame-canvas" width="720" height="210"></canvas>
+                </div>
+
+                <div class="minigame-controls-bar">
+                  <span id="minigame-hint">Nhấn Chuột, Chạm màn hình hoặc phím Space để điều khiển.</span>
+                  <span>Điểm tự động đồng bộ xuống hồ sơ kỹ năng</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Mục 2: Tự đánh giá kỹ năng (8 chỉ số từ tài liệu đặc tả) -->
+            <section id="sec-self-assess" class="gd-card">
+              <div class="card-title">
+                <span>2. Tự đánh giá kỹ năng</span>
+                <span style="font-size: 0.82rem; font-weight: 500; color: var(--text-muted);">Vector 8 nhóm kỹ năng cốt lõi</span>
+              </div>
+              <p class="card-desc">
+                Tinh chỉnh thủ công hoặc chọn nhanh mẫu hồ sơ bên dưới. Các thanh kỹ năng này tự động nhận kết quả từ phần <strong>Thử thách nhanh</strong> và <strong>Màn bạn đã qua</strong>.
+              </p>
+
+              <div class="preset-bar">
+                <span class="preset-label">Hồ sơ mẫu nhanh:</span>
+                <button class="chip-btn" data-preset="screenshot">Mặc định (Ảnh mẫu)</button>
+                <button class="chip-btn" data-preset="newbie">Newbie (Mới chơi)</button>
+                <button class="chip-btn" data-preset="easy_demon">Easy Demon</button>
+                <button class="chip-btn" data-preset="hard_demon">Hard / Insane Demon</button>
+                <button class="chip-btn" data-preset="extreme">Extreme Slayer</button>
+              </div>
+
+              <div id="skills-sliders-grid" class="skills-sliders-grid"></div>
+            </section>
+
+            <!-- Mục 3: Màn bạn đã qua (Nhập lịch sử chơi & Tính điểm Elo) -->
+            <section id="sec-completed-levels" class="gd-card">
+              <div class="card-title">
+                <span>3. Màn bạn đã qua</span>
+                <span style="font-size: 0.82rem; font-weight: 500; color: var(--accent-green);">Tự động cộng Elo kỹ năng</span>
+              </div>
+              <p class="card-desc">
+                Nhập các màn Geometry Dash bạn đã vượt qua hoặc đang luyện dở (% tiến độ, số attempt). Hệ thống sẽ cập nhật điểm kỹ năng kiểu Elo dựa trên vector yêu cầu của màn đó.
+              </p>
+
+              <div class="log-form-grid">
+                <div class="form-group">
+                  <label for="history-level-select">Chọn màn chơi (kèm GD Level ID)</label>
+                  <select id="history-level-select" class="gd-select"></select>
+                </div>
+                <div class="form-group">
+                  <label for="history-progress-input">Tiến độ (%)</label>
+                  <input id="history-progress-input" type="number" min="1" max="100" value="100" class="gd-input" />
+                </div>
+                <div class="form-group">
+                  <label for="history-attempts-input">Số Attempt</label>
+                  <input id="history-attempts-input" type="number" min="1" max="999999" value="320" class="gd-input" />
+                </div>
+                <button id="btn-add-playlog" class="btn-primary">+ Lưu kết quả</button>
+              </div>
+
+              <div id="history-list" class="history-list"></div>
+            </section>
+
+            <!-- Mục 4: Trình độ hiện tại (Biểu đồ Radar 8 kỹ năng, Huy hiệu mốc & Tổng kết) -->
+            <section id="sec-current-profile" class="gd-card">
+              <div class="card-title">
+                <span>4. Trình độ hiện tại</span>
+                <button id="btn-share-profile" class="btn-secondary">🔗 Chia sẻ / So với bạn bè</button>
+              </div>
+              <p class="card-desc">
+                Tổng hợp hồ sơ kỹ năng theo thời gian thực. Dựa trên biểu đồ này, hệ thống sẽ tìm ra điểm nghẽn và gợi ý màn chơi vừa sức (+10% đến +20%).
+              </p>
+
+              <div class="profile-overview-grid">
+                <div class="radar-box">
+                  <canvas id="skill-radar-canvas" width="330" height="295"></canvas>
+                </div>
+
+                <div class="tier-summary-box">
+                  <div class="tier-banner">
+                    <div class="tier-label">Phân hạng trình độ thực tế</div>
+                    <div class="tier-value" id="profile-tier-value">Medium Demon Tier (66/100)</div>
+                    <div style="font-size: 0.86rem; color: var(--text-secondary);" id="profile-overall-score">
+                      66 điểm Elo tổng hợp
+                    </div>
+                  </div>
+
+                  <div class="stat-pair-grid">
+                    <div class="mini-stat-card">
+                      <div class="mini-stat-label">Kỹ năng mũi nhọn</div>
+                      <div class="mini-stat-val" id="profile-strongest-skill" style="color: var(--accent-green);">
+                        Ship (100) &amp; UFO (100)
+                      </div>
+                    </div>
+                    <div class="mini-stat-card">
+                      <div class="mini-stat-label">Kỹ năng cần bù đắp</div>
+                      <div class="mini-stat-val" id="profile-weakest-skill" style="color: var(--accent-red);">
+                        Timing (32) &amp; Spam (47)
+                      </div>
+                    </div>
+                  </div>
+
+                  <p id="profile-quick-advice" style="font-size: 0.88rem; color: var(--text-secondary);"></p>
+
+                  <div>
+                    <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 6px;">Huy hiệu mốc đạt được:</div>
+                    <div id="profile-badges-row" class="badges-row"></div>
+                  </div>
+
+                  <button id="btn-jump-recommend" class="btn-primary" style="width: 100%; padding: 13px;">
+                    Xem màn gợi ý vừa sức &amp; Lộ trình luyện tập →
+                  </button>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+
+        <!-- ==================== TAB 2: GỢI Ý & LỘ TRÌNH ==================== -->
+        <div id="tab-view-recommend" class="tab-view">
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+
+            <!-- Mục 1: Gợi ý màn "Vừa sức" (+10% - 20%) kèm giải thích lý do & Death Heatmap -->
+            <section id="sec-sweetspot" class="gd-card">
+              <div class="card-title">
+                <span>1. Gợi ý màn "Vừa sức" (+10% – 20% thử thách)</span>
+                <span class="gd-badge">Giải thích lý do + Death Heatmap</span>
+              </div>
+              <p class="card-desc">
+                Các màn dưới đây có độ khó nhỉnh hơn trình độ hiện tại của bạn từ 10% đến 20%, đồng thời tập trung rèn luyện đúng nhóm kỹ năng bạn còn thiếu mà vẫn phát huy thế mạnh của bạn. Bấm vào <strong>ID</strong> để copy vào game.
+              </p>
+
+              <div id="sweetspot-rec-list" class="rec-cards-list"></div>
+            </section>
+
+            <!-- Mục 2: Lộ trình tới màn mục tiêu (Challenge Roadmap theo khoảng cách Vector) -->
+            <section id="sec-roadmap" class="gd-card">
+              <div class="card-title">
+                <span>2. Lộ trình luyện tập tới màn mơ ước</span>
+                <span style="font-size: 0.82rem; color: var(--text-muted);">Vector Gap Analysis</span>
+              </div>
+              <p class="card-desc">
+                Chọn màn chơi mục tiêu bạn khao khát vượt qua. Web sẽ tính khoảng cách giữa vector kỹ năng hiện tại và yêu cầu của màn đó, chỉ ra điểm yếu và tạo chuỗi màn <strong>Challenge (kèm ID)</strong> theo thứ tự tăng dần.
+              </p>
+
+              <div class="roadmap-controls">
+                <div class="form-group">
+                  <label for="roadmap-target-select">Chọn màn mục tiêu mơ ước</label>
+                  <select id="roadmap-target-select" class="gd-select"></select>
+                </div>
+                <div class="form-group">
+                  <label for="roadmap-days-input">Mục tiêu cá nhân (Số ngày)</label>
+                  <input id="roadmap-days-input" type="number" min="3" max="365" value="30" class="gd-input" />
+                </div>
+                <button id="btn-generate-roadmap" class="btn-primary">Tạo lộ trình Challenge</button>
+              </div>
+
+              <div style="font-size: 0.84rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">
+                So sánh khoảng cách kỹ năng với màn mục tiêu:
+              </div>
+              <div id="roadmap-gap-chips" class="gap-chips-wrap"></div>
+
+              <div id="roadmap-steps-list" class="roadmap-steps"></div>
+            </section>
+
+            <!-- Mục 3: Thử thách Tuần / Tháng & Mục tiêu cộng đồng -->
+            <section id="sec-weekly" class="gd-card">
+              <h2 class="card-title">3. Thử thách Tuần / Tháng &amp; So sánh bạn bè</h2>
+              <p class="card-desc">
+                Hoàn thành thử thách định kỳ để mở khóa huy hiệu độc quyền trên diễn đàn và duy trì chuỗi luyện tập mỗi ngày.
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+                <div class="skill-slider-item">
+                  <div class="gd-badge" style="margin-bottom: 8px;">⏳ Còn 4 ngày • 318 người tham gia</div>
+                  <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Thử thách Tuần: Nâng cấp Timing &amp; Wave</h3>
+                  <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px;">
+                    Vượt qua Challenge "Precision Jumps I" (ID: 78234110) và đạt ít nhất 65% ở "Problematic" (ID: 7116121).
+                  </p>
+                  <span class="tag-badge">Phần thưởng: 🏅 Huy hiệu Wave &amp; Timing Tuần 46</span>
+                </div>
+                <div class="skill-slider-item">
+                  <div class="gd-badge" style="margin-bottom: 8px;">⏳ Còn 19 ngày • 642 người tham gia</div>
+                  <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Mục tiêu Tháng: Medium Demon Slayer</h3>
+                  <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px;">
+                    Hoàn thành 100% màn "B" (ID: 34085027) hoặc "Verity" (ID: 17775654) trong vòng 30 ngày.
+                  </p>
+                  <span class="tag-badge">Phần thưởng: 🏆 Slayer Medium Demon</span>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+
+        <!-- ==================== TAB 3: DIỄN ĐÀN ==================== -->
+        <div id="tab-view-forum" class="tab-view">
+          <div style="display: flex; flex-direction: column; gap: 24px;">
+
+            <!-- Mục 1: Đăng bài chia sẻ kinh nghiệm / Guide / Hỏi đáp -->
+            <section id="sec-forum-create" class="gd-card">
+              <div class="card-title">
+                <span>1. Chia sẻ Guide, Mẹo qua màn &amp; Hỏi đáp</span>
+                <span class="gd-badge">“Facebook” cho người chơi GD</span>
+              </div>
+              <p class="card-desc">
+                Bài viết gắn với màn chơi sẽ tự động hiển thị trong phần gợi ý màn của những người chơi khác đang luyện màn đó.
+              </p>
+
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
+                  <input id="post-title-input" type="text" class="gd-input" placeholder="Tiêu đề bài viết (VD: Mẹo qua đoạn Wave 73% Deadlocked...)" />
+                  <select id="post-level-select" class="gd-select">
+                    <option value="">-- Liên kết màn chơi (Tùy chọn) --</option>
+                  </select>
+                  <select id="post-tag-select" class="gd-select">
+                    <option value="#Guide">📘 Guide / Hướng dẫn</option>
+                    <option value="#Wave">〰️ Kỹ năng Wave</option>
+                    <option value="#Timing">⏱️ Kỹ năng Timing</option>
+                    <option value="#Ship">🚀 Kỹ năng Ship</option>
+                    <option value="#HỏiĐáp">❓ Hỏi đáp</option>
+                  </select>
+                </div>
+                <textarea id="post-content-input" rows="3" class="gd-textarea" placeholder="Chia sẻ chi tiết kinh nghiệm, vị trí đặt Start Pos, hoặc nhịp click của bạn..."></textarea>
+                <div>
+                  <button id="btn-publish-post" class="btn-primary">Đăng bài lên cộng đồng</button>
+                </div>
+              </div>
+            </section>
+
+            <!-- Mục 2: Bảng tin cộng đồng & Bộ lọc Tag -->
+            <section id="sec-forum-feed" class="gd-card">
+              <div class="forum-toolbar">
+                <h2 class="card-title" style="margin-bottom: 0;">2. Thảo luận &amp; Guide từ Cộng đồng</h2>
+                <input id="forum-search-input" type="text" class="gd-input" placeholder="Tìm theo tên màn, ID, kỹ năng..." style="min-width: 240px;" />
+              </div>
+
+              <div class="forum-tags-bar">
+                <button class="chip-btn active" data-forum-tag="ALL">Tất cả</button>
+                <button class="chip-btn" data-forum-tag="#Guide">#Guide</button>
+                <button class="chip-btn" data-forum-tag="#Wave">#Wave</button>
+                <button class="chip-btn" data-forum-tag="#Timing">#Timing</button>
+                <button class="chip-btn" data-forum-tag="#Ship">#Ship</button>
+                <button class="chip-btn" data-forum-tag="#EasyDemon">#EasyDemon</button>
+                <button class="chip-btn" data-forum-tag="#HardDemon">#HardDemon</button>
+                <button class="chip-btn" data-forum-tag="#NineCircles">#NineCircles</button>
+              </div>
+
+              <div id="forum-posts-list"></div>
+            </section>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- CỘT PHẢI: SIDEBAR "DANH MỤC" GIỐNG HỆT ẢNH MẪU -->
+      <aside class="sidebar-column">
+        <div class="toc-card">
+          <div class="toc-header">
+            <h2 class="toc-title">Danh mục</h2>
+            <button id="toc-toggle-btn" class="toc-toggle-btn" title="Thu gọn / Mở rộng danh mục" aria-label="Menu danh mục">
+              ☰
+            </button>
+          </div>
+          <ul id="toc-list" class="toc-list">
+            <li><a href="#sec-quick-challenge" class="toc-link">1. Thử thách nhanh</a></li>
+            <li><a href="#sec-self-assess" class="toc-link">2. Tự đánh giá kỹ năng</a></li>
+            <li><a href="#sec-completed-levels" class="toc-link">3. Màn bạn đã qua</a></li>
+            <li><a href="#sec-current-profile" class="toc-link">4. Trình độ hiện tại</a></li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- Toast thông báo nổi -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="data.js"></script>
+  <script src="minigames.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
