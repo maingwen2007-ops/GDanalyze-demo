@@ -492,10 +492,11 @@ window.GD_WEEKLY_CHALLENGES = [
   }
 ];
 
-// Gộp 2.000 màn chơi Demon ngẫu nhiên đã trích xuất từ Pointercrate & GDBrowser vào GD_LEVELS
+// Gộp 3.000 màn chơi Demon ngẫu nhiên đã trích xuất từ Pointercrate & GDBrowser vào GD_LEVELS
 const extractedBatches = [
   ...(Array.isArray(window.GD_EXTRACTED_DEMONS) ? window.GD_EXTRACTED_DEMONS : []),
-  ...(Array.isArray(window.GD_EXTRACTED_DEMONS_2) ? window.GD_EXTRACTED_DEMONS_2 : [])
+  ...(Array.isArray(window.GD_EXTRACTED_DEMONS_2) ? window.GD_EXTRACTED_DEMONS_2 : []),
+  ...(Array.isArray(window.GD_EXTRACTED_DEMONS_3) ? window.GD_EXTRACTED_DEMONS_3 : [])
 ];
 if (extractedBatches.length > 0) {
   const existingIds = new Set(window.GD_LEVELS.map((l) => String(l.gd_level_id)));
