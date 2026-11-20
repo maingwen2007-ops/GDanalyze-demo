@@ -14,7 +14,7 @@
   let onScoreUpdateCallback = null;
 
   // Trạng thái vật lý của mini-game
-  let player = { x: 90, y: 105, vy: 0, size: 16, trail: [] };
+  let player = { x: 90, y: 105, vy: 0, angle: 0, size: 16, trail: [] };
   let progress = 0; // 0 -> 100%
   let obstacles = [];
   let rhythmBeats = [];
@@ -59,6 +59,7 @@
     rhythmBeats = [];
     spamClicks = [];
     player.trail = [];
+    player.angle = 0;
     progress = 0;
     currentScore = 0;
 
@@ -121,7 +122,7 @@
 
     if (activeMode === 'timing') {
       if (player.y >= 158) {
-        player.vy = -8.7;
+        player.vy = -520;
       }
     } else if (activeMode === 'ufo') {
       player.vy = -6.2;
@@ -187,12 +188,19 @@
     if (activeMode === 'timing') {
       const speed = 260 * dt;
       progress = Math.min(100, progress + dt * 15);
-      player.vy += 24 * dt;
-      player.y += player.vy;
-      if (player.y > 160) {
+      player.vy += 2400 * dt;
+      player.y += player.vy * dt;
+      if (player.y >= 160) {
         player.y = 160;
-        player.vy = 0;
+        player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
+        player.vy = isHolding ? -520 : 0;
+      } else {
+        player.angle += 7.3 * dt;
       }
+
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 26) player.trail.shift();
+      player.trail.forEach((p) => (p.x -= speed));
 
       for (const ob of obstacles) {
         ob.x -= speed;
@@ -234,9 +242,10 @@
     } else if (activeMode === 'ship') {
       const speed = 240 * dt;
       progress = Math.min(100, progress + dt * 14);
-      player.vy += (isHolding ? -420 : 380) * dt;
-      player.vy = Math.max(-200, Math.min(200, player.vy));
+      player.vy += (isHolding ? -1050 : 920) * dt;
+      player.vy = Math.max(-280, Math.min(280, player.vy));
       player.y += player.vy * dt;
+      player.angle = Math.atan2(player.vy, 240) * 0.85;
       player.trail.push({ x: player.x, y: player.y });
       if (player.trail.length > 28) player.trail.shift();
       player.trail.forEach((p) => (p.x -= speed));
@@ -310,6 +319,71 @@
     }
   }
 
+  function drawGDCube(cx, cy, size, angle) {
+    const half = size / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    // Thân Cube đen viền hồng/tím neon giống video
+    ctx.fillStyle = '#09050f';
+    ctx.strokeStyle = '#ff2ad4';
+    ctx.lineWidth = 2;
+    ctx.fillRect(-half, -half, size, size);
+    ctx.strokeRect(-half, -half, size, size);
+
+    // Họa tiết mặt & góc màu hồng/tím bên trong
+    ctx.fillStyle = '#ff2ad4';
+    const dot = Math.max(2, size * 0.14);
+    const pad = size * 0.22;
+    // Hai mắt / điểm trên
+    ctx.fillRect(-pad - dot / 2, -pad - dot / 2, dot, dot);
+    ctx.fillRect(pad - dot / 2, -pad - dot / 2, dot, dot);
+    // Tâm giữa
+    ctx.fillRect(-dot / 2, -dot / 2, dot, dot);
+    // Viền dưới / miệng nhỏ
+    ctx.fillRect(-size * 0.24, size * 0.18, size * 0.48, Math.max(2, size * 0.1));
+    // Khuyết góc nhỏ
+    const corner = Math.max(2, size * 0.14);
+    ctx.fillRect(-half, -half, corner, corner);
+    ctx.fillRect(half - corner, -half, corner, corner);
+    ctx.fillRect(-half, half - corner, corner, corner);
+    ctx.fillRect(half - corner, half - corner, corner, corner);
+
+    ctx.restore();
+  }
+
+  function drawGDShip(cx, cy, angle) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    // Cube mini ngồi trên khoang lái Ship
+    drawGDCube(0, -4, 13, 0);
+
+    // Thân tàu Ship đen viền hồng/tím neon
+    ctx.fillStyle = '#09050f';
+    ctx.strokeStyle = '#ff2ad4';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-14, 1);
+    ctx.lineTo(-9, -2);
+    ctx.lineTo(8, -2);
+    ctx.lineTo(15, 2);
+    ctx.lineTo(9, 8);
+    ctx.lineTo(-10, 8);
+    ctx.lineTo(-14, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Điểm sáng động cơ phía sau
+    ctx.fillStyle = '#ff2ad4';
+    ctx.fillRect(-16, 1, 3, 4);
+
+    ctx.restore();
+  }
+
   function renderArena() {
     if (!ctx || !canvas) return;
     const W = canvas.width;
@@ -360,11 +434,23 @@
         ctx.fill();
       });
 
-      // Cube
-      ctx.fillStyle = '#34d399';
-      ctx.fillRect(player.x - 12, player.y - 12, 24, 24);
-      ctx.strokeStyle = '#ffffff';
-      ctx.strokeRect(player.x - 8, player.y - 8, 16, 16);
+      // Vệt sáng nét đứt hồng/tím giống Geometry Dash
+      if (player.trail.length > 1) {
+        ctx.save();
+        ctx.strokeStyle = '#ff2ad4';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([7, 6]);
+        ctx.beginPath();
+        player.trail.forEach((pt, idx) => {
+          if (idx === 0) ctx.moveTo(pt.x, pt.y);
+          else ctx.lineTo(pt.x, pt.y);
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Cube đen viền hồng/tím có họa tiết giống video
+      drawGDCube(player.x, player.y, 24, player.angle);
     } else if (activeMode === 'wave' || activeMode === 'ship' || activeMode === 'ufo') {
       // Chướng ngại vật trên & dưới
       ctx.fillStyle = 'rgba(166, 110, 255, 0.35)';
@@ -378,24 +464,48 @@
 
       // Vệt sáng (Trail) cho Wave & Ship
       if (player.trail.length > 1) {
-        ctx.strokeStyle = '#ff9900';
-        ctx.lineWidth = 3;
+        ctx.save();
+        if (activeMode === 'ship') {
+          ctx.strokeStyle = '#ff2ad4';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([7, 6]);
+        } else {
+          ctx.strokeStyle = '#ff9900';
+          ctx.lineWidth = 3;
+        }
         ctx.beginPath();
         player.trail.forEach((pt, idx) => {
           if (idx === 0) ctx.moveTo(pt.x, pt.y);
           else ctx.lineTo(pt.x, pt.y);
         });
         ctx.stroke();
+        ctx.restore();
+
+        // Hạt lửa vuông hồng/cam phía sau động cơ Ship
+        if (activeMode === 'ship') {
+          for (let i = Math.max(0, player.trail.length - 8); i < player.trail.length; i += 2) {
+            const pt = player.trail[i];
+            const ratio = i / player.trail.length;
+            ctx.fillStyle = i % 4 === 0 ? '#ff9900' : '#ff2ad4';
+            ctx.globalAlpha = 0.35 + ratio * 0.55;
+            ctx.fillRect(pt.x - 4, pt.y + ((i % 3) - 1) * 3, 4, 4);
+          }
+          ctx.globalAlpha = 1;
+        }
       }
 
       // Icon nhân vật
-      ctx.fillStyle = '#ff9900';
-      ctx.beginPath();
-      ctx.moveTo(player.x + 12, player.y);
-      ctx.lineTo(player.x - 10, player.y - 9);
-      ctx.lineTo(player.x - 10, player.y + 9);
-      ctx.closePath();
-      ctx.fill();
+      if (activeMode === 'ship') {
+        drawGDShip(player.x, player.y, player.angle);
+      } else {
+        ctx.fillStyle = '#ff9900';
+        ctx.beginPath();
+        ctx.moveTo(player.x + 12, player.y);
+        ctx.lineTo(player.x - 10, player.y - 9);
+        ctx.lineTo(player.x - 10, player.y + 9);
+        ctx.closePath();
+        ctx.fill();
+      }
     } else if (activeMode === 'spam_click') {
       ctx.fillStyle = '#cbbce6';
       ctx.font = 'bold 16px Inter, sans-serif';
