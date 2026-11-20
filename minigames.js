@@ -359,28 +359,56 @@
     ctx.translate(cx, cy);
     ctx.rotate(angle);
 
-    // Cube mini ngồi trên khoang lái Ship
-    drawGDCube(0, -4, 13, 0);
+    // Cube mini ngồi trên bệ lái Ship
+    drawGDCube(1, -6, 11, 0);
 
-    // Thân tàu Ship đen viền hồng/tím neon
-    ctx.fillStyle = '#09050f';
-    ctx.strokeStyle = '#ff2ad4';
     ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#09050f';
+
+    // Thân tàu xanh lá (#6dff00) viền đen theo mẫu GDTS_Ship
+    ctx.fillStyle = '#6dff00';
+
+    // Ống xả động cơ phía sau
+    ctx.fillRect(-16, -1, 3, 7);
+    ctx.strokeRect(-16, -1, 3, 7);
+
+    // Đuôi loe phía sau
     ctx.beginPath();
-    ctx.moveTo(-14, 1);
-    ctx.lineTo(-9, -2);
-    ctx.lineTo(8, -2);
-    ctx.lineTo(15, 2);
-    ctx.lineTo(9, 8);
-    ctx.lineTo(-10, 8);
-    ctx.lineTo(-14, 5);
+    ctx.moveTo(-13, -4);
+    ctx.lineTo(-7, 0);
+    ctx.lineTo(-7, 8);
+    ctx.lineTo(-13, 9);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Điểm sáng động cơ phía sau
-    ctx.fillStyle = '#ff2ad4';
-    ctx.fillRect(-16, 1, 3, 4);
+    // Khoang giữa
+    ctx.fillRect(-7, 0, 11, 8);
+    ctx.strokeRect(-7, 0, 11, 8);
+
+    // Mũi tàu vát nhọn phía trước
+    ctx.beginPath();
+    ctx.moveTo(4, 0);
+    ctx.lineTo(16, 2);
+    ctx.lineTo(16, 6);
+    ctx.lineTo(4, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Bệ ngồi / cánh chữ L màu xanh cyan (#00f0ff) viền đen phía trên
+    ctx.fillStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.moveTo(-9, -11);
+    ctx.lineTo(-6, -11);
+    ctx.lineTo(-6, -5);
+    ctx.lineTo(11, -3);
+    ctx.lineTo(11, 0);
+    ctx.lineTo(-9, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
     ctx.restore();
   }
