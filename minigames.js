@@ -325,30 +325,31 @@
     ctx.translate(cx, cy);
     ctx.rotate(angle);
 
-    // Thân Cube đen viền hồng/tím neon giống video
-    ctx.fillStyle = '#09050f';
-    ctx.strokeStyle = '#ff2ad4';
-    ctx.lineWidth = 2;
+    // Thân Cube xanh lá viền đen chuẩn icon/logo Geometry Dash
+    ctx.fillStyle = '#6dff00';
+    ctx.strokeStyle = '#09050f';
+    ctx.lineWidth = Math.max(1.5, size * 0.08);
     ctx.fillRect(-half, -half, size, size);
     ctx.strokeRect(-half, -half, size, size);
 
-    // Họa tiết mặt & góc màu hồng/tím bên trong
-    ctx.fillStyle = '#ff2ad4';
-    const dot = Math.max(2, size * 0.14);
-    const pad = size * 0.22;
-    // Hai mắt / điểm trên
-    ctx.fillRect(-pad - dot / 2, -pad - dot / 2, dot, dot);
-    ctx.fillRect(pad - dot / 2, -pad - dot / 2, dot, dot);
-    // Tâm giữa
-    ctx.fillRect(-dot / 2, -dot / 2, dot, dot);
-    // Viền dưới / miệng nhỏ
-    ctx.fillRect(-size * 0.24, size * 0.18, size * 0.48, Math.max(2, size * 0.1));
-    // Khuyết góc nhỏ
-    const corner = Math.max(2, size * 0.14);
-    ctx.fillRect(-half, -half, corner, corner);
-    ctx.fillRect(half - corner, -half, corner, corner);
-    ctx.fillRect(-half, half - corner, corner, corner);
-    ctx.fillRect(half - corner, half - corner, corner, corner);
+    // Hai mắt vuông và miệng ngang màu xanh cyan viền đen
+    ctx.fillStyle = '#00f0ff';
+    const eyeSize = size * 0.2;
+    const eyeY = -size * 0.22;
+    const eyeOffsetX = size * 0.22;
+
+    // Mắt trái & mắt phải
+    ctx.fillRect(-eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
+    ctx.strokeRect(-eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
+    ctx.fillRect(eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
+    ctx.strokeRect(eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
+
+    // Miệng ngang
+    const mouthW = size * 0.64;
+    const mouthH = size * 0.16;
+    const mouthY = size * 0.12;
+    ctx.fillRect(-mouthW / 2, mouthY, mouthW, mouthH);
+    ctx.strokeRect(-mouthW / 2, mouthY, mouthW, mouthH);
 
     ctx.restore();
   }
