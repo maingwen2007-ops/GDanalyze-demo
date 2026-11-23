@@ -20,6 +20,128 @@
   let rhythmBeats = [];
   let spamClicks = [];
   let lastFrameTime = 0;
+  let difficultyTier = 'extreme'; // 'extreme' (Top Extreme Demon - Prismline) | 'standard'
+
+  const TIER_PARAMS = {
+    extreme: {
+      badge: 'TOP EXTREME • PRISMLINE',
+      timing: {
+        speed: 355,
+        progressRate: 12.5,
+        jumpVy: -560,
+        gravity: 2850,
+        rotSpeed: 8.6,
+        positions: [260, 430, 610, 790, 965, 1145, 1320, 1500, 1680, 1855, 2030, 2210, 2390],
+        widths: [28, 46, 32, 54, 30, 48, 56, 30, 46, 54, 32, 50, 56],
+        heights: [34, 38, 42, 36, 44, 40, 38, 44, 42, 40, 46, 42, 44]
+      },
+      wave: {
+        speed: 340,
+        vy: 340,
+        progressRate: 10.5,
+        count: 20,
+        startX: 230,
+        spacing: 115,
+        baseGap: 44,
+        minGap: 30,
+        width: 38
+      },
+      ship: {
+        speed: 320,
+        progressRate: 10.5,
+        upAccel: -1250,
+        downGravity: 1100,
+        maxVy: 320,
+        count: 20,
+        startX: 230,
+        spacing: 102,
+        baseGap: 42,
+        minGap: 32,
+        width: 64
+      },
+      ufo: {
+        speed: 315,
+        progressRate: 11,
+        jumpVy: -370,
+        gravity: 1650,
+        count: 15,
+        startX: 250,
+        spacing: 130,
+        gap: 48,
+        width: 34
+      },
+      spam_click: {
+        targetCps: 14.0,
+        decay: 125
+      },
+      rhythm: {
+        speed: 340,
+        count: 16,
+        hitWindow: 36,
+        penaltyMult: 2.4,
+        spacings: [120, 110, 130, 105, 125, 110, 135, 105, 120, 115, 125, 105, 130, 110, 115, 120]
+      }
+    },
+    standard: {
+      badge: 'TIÊU CHUẨN',
+      timing: {
+        speed: 260,
+        progressRate: 15,
+        jumpVy: -520,
+        gravity: 2400,
+        rotSpeed: 7.3,
+        positions: [280, 470, 680, 890, 1120, 1360, 1600, 1850],
+        widths: [24, 38, 24, 38, 24, 38, 24, 38],
+        heights: [30, 30, 30, 30, 30, 36, 36, 36]
+      },
+      wave: {
+        speed: 250,
+        vy: 210,
+        progressRate: 14,
+        count: 14,
+        startX: 250,
+        spacing: 135,
+        baseGap: 58,
+        minGap: 44,
+        width: 42
+      },
+      ship: {
+        speed: 240,
+        progressRate: 14,
+        upAccel: -1050,
+        downGravity: 920,
+        maxVy: 280,
+        count: 16,
+        startX: 240,
+        spacing: 120,
+        baseGap: 64,
+        minGap: 64,
+        width: 70
+      },
+      ufo: {
+        speed: 240,
+        progressRate: 14,
+        jumpVy: -340,
+        gravity: 1400,
+        count: 10,
+        startX: 280,
+        spacing: 175,
+        gap: 68,
+        width: 32
+      },
+      spam_click: {
+        targetCps: 9.5,
+        decay: 85
+      },
+      rhythm: {
+        speed: 230,
+        count: 10,
+        hitWindow: 55,
+        penaltyMult: 1.4,
+        spacings: Array(10).fill(145)
+      }
+    }
+  };
 
   const MODE_CONFIG = {
     timing: {
@@ -63,52 +185,60 @@
     progress = 0;
     currentScore = 0;
 
+    const p = TIER_PARAMS[difficultyTier][mode];
+
     if (mode === 'timing') {
       player.y = 160;
       player.vy = 0;
-      const positions = [280, 470, 680, 890, 1120, 1360, 1600, 1850];
-      positions.forEach((x, idx) => {
+      p.positions.forEach((x, idx) => {
         obstacles.push({
           x,
-          w: idx % 2 === 1 ? 38 : 24,
-          h: idx > 4 ? 36 : 30
+          w: p.widths[idx % p.widths.length],
+          h: p.heights[idx % p.heights.length]
         });
       });
     } else if (mode === 'wave') {
       player.y = 105;
       player.vy = 0;
-      for (let i = 0; i < 14; i++) {
-        const x = 250 + i * 135;
-        const center = 65 + ((i * 37) % 80);
-        const gap = 58 - Math.min(14, i);
-        obstacles.push({ x, w: 42, topH: center - gap / 2, botY: center + gap / 2 });
+      for (let i = 0; i < p.count; i++) {
+        const x = p.startX + i * p.spacing;
+        const center = difficultyTier === 'extreme'
+          ? 52 + ((i * 53) % 102)
+          : 65 + ((i * 37) % 80);
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.85);
+        obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ship') {
       player.y = 105;
       player.vy = 0;
-      for (let i = 0; i < 16; i++) {
-        const x = 240 + i * 120;
-        const center = 80 + Math.sin(i * 0.8) * 32;
-        const gap = 64;
-        obstacles.push({ x, w: 70, topH: center - gap / 2, botY: center + gap / 2 });
+      for (let i = 0; i < p.count; i++) {
+        const x = p.startX + i * p.spacing;
+        const center = difficultyTier === 'extreme'
+          ? 96 + Math.sin(i * 0.95) * 42
+          : 80 + Math.sin(i * 0.8) * 32;
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.6);
+        obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ufo') {
       player.y = 100;
       player.vy = 0;
-      for (let i = 0; i < 10; i++) {
-        const x = 280 + i * 175;
-        const center = 65 + ((i * 49) % 75);
-        const gap = 68;
-        obstacles.push({ x, w: 32, topH: center - gap / 2, botY: center + gap / 2 });
+      for (let i = 0; i < p.count; i++) {
+        const x = p.startX + i * p.spacing;
+        const center = difficultyTier === 'extreme'
+          ? 55 + ((i * 57) % 92)
+          : 65 + ((i * 49) % 75);
+        obstacles.push({ x, w: p.width, topH: center - p.gap / 2, botY: center + p.gap / 2 });
       }
     } else if (mode === 'rhythm') {
-      for (let i = 0; i < 10; i++) {
+      let curX = 260;
+      for (let i = 0; i < p.count; i++) {
         rhythmBeats.push({
-          x: 260 + i * 145,
+          x: curX,
           hit: false,
           missed: false,
           accuracy: 0
         });
+        curX += p.spacings[i % p.spacings.length];
       }
     }
   }
@@ -120,12 +250,14 @@
       return;
     }
 
+    const p = TIER_PARAMS[difficultyTier][activeMode];
+
     if (activeMode === 'timing') {
       if (player.y >= 158) {
-        player.vy = -520;
+        player.vy = p.jumpVy;
       }
     } else if (activeMode === 'ufo') {
-      player.vy = -6.2;
+      player.vy = p.jumpVy;
     } else if (activeMode === 'spam_click') {
       spamClicks.push(performance.now());
       player.y = Math.max(30, player.y - 11);
@@ -143,9 +275,9 @@
           }
         }
       });
-      if (nearest && minDist < 55) {
+      if (nearest && minDist < p.hitWindow) {
         nearest.hit = true;
-        nearest.accuracy = Math.max(25, Math.round(100 - minDist * 1.4));
+        nearest.accuracy = Math.max(25, Math.round(100 - minDist * p.penaltyMult));
       }
     }
   }
@@ -180,27 +312,33 @@
     if (metaEl && activeMode) {
       metaEl.textContent = `Lượt thử: ${attemptsUsed}/${maxAttempts} • Điểm cao nhất phiên: ${bestSessionScore}/100`;
     }
+    const badgeEl = document.getElementById('minigame-tier-badge');
+    if (badgeEl) {
+      badgeEl.textContent = TIER_PARAMS[difficultyTier].badge;
+      badgeEl.classList.toggle('extreme', difficultyTier === 'extreme');
+    }
   }
 
   function updatePhysics(dt) {
     if (gameState !== 'playing') return;
+    const p = TIER_PARAMS[difficultyTier][activeMode];
 
     if (activeMode === 'timing') {
-      const speed = 260 * dt;
-      progress = Math.min(100, progress + dt * 15);
-      player.vy += 2400 * dt;
+      const speed = p.speed * dt;
+      progress = Math.min(100, progress + dt * p.progressRate);
+      player.vy += p.gravity * dt;
       player.y += player.vy * dt;
       if (player.y >= 160) {
         player.y = 160;
         player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
-        player.vy = isHolding ? -520 : 0;
+        player.vy = isHolding ? p.jumpVy : 0;
       } else {
-        player.angle += 7.3 * dt;
+        player.angle += p.rotSpeed * dt;
       }
 
       player.trail.push({ x: player.x, y: player.y });
       if (player.trail.length > 26) player.trail.shift();
-      player.trail.forEach((p) => (p.x -= speed));
+      player.trail.forEach((pt) => (pt.x -= speed));
 
       for (const ob of obstacles) {
         ob.x -= speed;
@@ -216,13 +354,13 @@
       currentScore = Math.round(progress);
       if (progress >= 100) finishAttempt(100);
     } else if (activeMode === 'wave') {
-      const speed = 250 * dt;
-      progress = Math.min(100, progress + dt * 14);
-      player.vy = isHolding ? -210 : 210;
+      const speed = p.speed * dt;
+      progress = Math.min(100, progress + dt * p.progressRate);
+      player.vy = isHolding ? -p.vy : p.vy;
       player.y += player.vy * dt;
       player.trail.push({ x: player.x, y: player.y });
       if (player.trail.length > 35) player.trail.shift();
-      player.trail.forEach((p) => (p.x -= speed));
+      player.trail.forEach((pt) => (pt.x -= speed));
 
       if (player.y < 14 || player.y > 196) {
         finishAttempt(progress);
@@ -240,15 +378,15 @@
       currentScore = Math.round(progress);
       if (progress >= 100) finishAttempt(100);
     } else if (activeMode === 'ship') {
-      const speed = 240 * dt;
-      progress = Math.min(100, progress + dt * 14);
-      player.vy += (isHolding ? -1050 : 920) * dt;
-      player.vy = Math.max(-280, Math.min(280, player.vy));
+      const speed = p.speed * dt;
+      progress = Math.min(100, progress + dt * p.progressRate);
+      player.vy += (isHolding ? p.upAccel : p.downGravity) * dt;
+      player.vy = Math.max(-p.maxVy, Math.min(p.maxVy, player.vy));
       player.y += player.vy * dt;
-      player.angle = Math.atan2(player.vy, 240) * 0.85;
+      player.angle = Math.atan2(player.vy, p.speed) * 0.85;
       player.trail.push({ x: player.x, y: player.y });
       if (player.trail.length > 28) player.trail.shift();
-      player.trail.forEach((p) => (p.x -= speed));
+      player.trail.forEach((pt) => (pt.x -= speed));
 
       if (player.y < 14 || player.y > 196) {
         finishAttempt(progress);
@@ -266,10 +404,10 @@
       currentScore = Math.round(progress);
       if (progress >= 100) finishAttempt(100);
     } else if (activeMode === 'ufo') {
-      const speed = 240 * dt;
-      progress = Math.min(100, progress + dt * 14);
-      player.vy += 19 * dt;
-      player.y += player.vy;
+      const speed = p.speed * dt;
+      progress = Math.min(100, progress + dt * p.progressRate);
+      player.vy += p.gravity * dt;
+      player.y += player.vy * dt;
 
       if (player.y < 14 || player.y > 196) {
         finishAttempt(progress);
@@ -291,13 +429,13 @@
       const now = performance.now();
       spamClicks = spamClicks.filter((t) => now - t < 1000);
       const cps = spamClicks.length;
-      currentScore = Math.min(100, Math.round((cps / 9.5) * 100));
-      player.y = Math.min(170, player.y + 85 * dt);
+      currentScore = Math.min(100, Math.round((cps / p.targetCps) * 100));
+      player.y = Math.min(170, player.y + p.decay * dt);
       if (progress >= 100) {
         finishAttempt(Math.max(currentScore, bestSessionScore));
       }
     } else if (activeMode === 'rhythm') {
-      const speed = 230 * dt;
+      const speed = p.speed * dt;
       let allDone = true;
       rhythmBeats.forEach((b) => {
         b.x -= speed;
@@ -625,6 +763,32 @@
           isHolding = false;
         }
       });
+
+      const extremeBtn = document.getElementById('qc-tier-extreme');
+      const standardBtn = document.getElementById('qc-tier-standard');
+      if (extremeBtn) {
+        extremeBtn.addEventListener('click', () => this.setDifficultyTier('extreme'));
+      }
+      if (standardBtn) {
+        standardBtn.addEventListener('click', () => this.setDifficultyTier('standard'));
+      }
+      updateHeaderUI();
+    },
+
+    setDifficultyTier(tier) {
+      if (tier !== 'extreme' && tier !== 'standard') return;
+      difficultyTier = tier;
+      const extremeBtn = document.getElementById('qc-tier-extreme');
+      const standardBtn = document.getElementById('qc-tier-standard');
+      if (extremeBtn) extremeBtn.classList.toggle('active', tier === 'extreme');
+      if (standardBtn) standardBtn.classList.toggle('active', tier === 'standard');
+
+      if (activeMode) {
+        attemptsUsed = 0;
+        gameState = 'idle';
+        generateMap(activeMode);
+      }
+      updateHeaderUI();
     },
 
     openMode(mode, existingScore) {

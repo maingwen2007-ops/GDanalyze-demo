@@ -72,7 +72,13 @@
 
             <!-- Mục 1: Thử thách nhanh (Quick Challenge) giống ảnh mẫu -->
             <section id="sec-quick-challenge" class="gd-card">
-              <h2 class="card-title">Thử thách nhanh</h2>
+              <div class="qc-header-row">
+                <h2 class="card-title" style="margin-bottom: 0;">Thử thách nhanh</h2>
+                <div class="qc-tier-switch" role="group" aria-label="Độ khó thử thách">
+                  <button id="qc-tier-extreme" type="button" class="qc-tier-btn active" title="Chuẩn Top Extreme Demon (Prismline #135148907)">🔥 Top Extreme (Prismline)</button>
+                  <button id="qc-tier-standard" type="button" class="qc-tier-btn" title="Chế độ luyện tập tiêu chuẩn">⚡ Tiêu chuẩn</button>
+                </div>
+              </div>
 
               <!-- Lưới 4 nút hàng trên + 2 nút rộng hàng dưới giống hệt ảnh mẫu -->
               <div class="quick-challenge-grid">
@@ -88,7 +94,7 @@
               <div id="minigame-drawer" class="minigame-drawer">
                 <div class="minigame-header">
                   <div class="minigame-title-group">
-                    <span class="minigame-badge">LIVE MINI-MAP</span>
+                    <span id="minigame-tier-badge" class="minigame-badge">TOP EXTREME • PRISMLINE</span>
                     <strong id="minigame-title">Bài test kỹ năng</strong>
                   </div>
                   <div class="minigame-meta">
