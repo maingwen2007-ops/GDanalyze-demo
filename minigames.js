@@ -24,121 +24,121 @@
 
   const TIER_PARAMS = {
     extreme: {
-      badge: 'TOP EXTREME • PRISMLINE',
+      badge: 'PRISMLINE • TẬP LUYỆN',
       timing: {
-        speed: 355,
-        progressRate: 12.5,
-        jumpVy: -560,
-        gravity: 2850,
-        rotSpeed: 8.6,
-        positions: [260, 430, 610, 790, 965, 1145, 1320, 1500, 1680, 1855, 2030, 2210, 2390],
-        widths: [28, 46, 32, 54, 30, 48, 56, 30, 46, 54, 32, 50, 56],
-        heights: [34, 38, 42, 36, 44, 40, 38, 44, 42, 40, 46, 42, 44]
+        speed: 295,
+        progressRate: 13.5,
+        jumpVy: -540,
+        gravity: 2550,
+        rotSpeed: 7.8,
+        positions: [280, 480, 685, 895, 1105, 1315, 1525, 1735, 1950, 2165],
+        widths: [24, 38, 26, 42, 26, 40, 44, 26, 38, 42],
+        heights: [28, 32, 34, 30, 36, 34, 32, 36, 34, 36]
       },
       wave: {
-        speed: 340,
-        vy: 340,
-        progressRate: 10.5,
-        count: 20,
-        startX: 230,
-        spacing: 115,
-        baseGap: 44,
-        minGap: 30,
+        speed: 280,
+        vy: 245,
+        progressRate: 12.5,
+        count: 16,
+        startX: 260,
+        spacing: 135,
+        baseGap: 60,
+        minGap: 46,
         width: 38
       },
       ship: {
-        speed: 320,
-        progressRate: 10.5,
-        upAccel: -1250,
-        downGravity: 1100,
-        maxVy: 320,
-        count: 20,
-        startX: 230,
-        spacing: 102,
-        baseGap: 42,
-        minGap: 32,
+        speed: 270,
+        progressRate: 12.5,
+        upAccel: -1080,
+        downGravity: 940,
+        maxVy: 280,
+        count: 16,
+        startX: 250,
+        spacing: 120,
+        baseGap: 60,
+        minGap: 48,
         width: 64
       },
       ufo: {
-        speed: 315,
-        progressRate: 11,
-        jumpVy: -370,
-        gravity: 1650,
-        count: 15,
-        startX: 250,
-        spacing: 130,
-        gap: 48,
+        speed: 265,
+        progressRate: 13,
+        jumpVy: -345,
+        gravity: 1450,
+        count: 12,
+        startX: 270,
+        spacing: 160,
+        gap: 64,
         width: 34
       },
       spam_click: {
-        targetCps: 14.0,
-        decay: 125
+        targetCps: 10.5,
+        decay: 95
       },
       rhythm: {
-        speed: 340,
-        count: 16,
-        hitWindow: 36,
-        penaltyMult: 2.4,
-        spacings: [120, 110, 130, 105, 125, 110, 135, 105, 120, 115, 125, 105, 130, 110, 115, 120]
+        speed: 275,
+        count: 12,
+        hitWindow: 48,
+        penaltyMult: 1.7,
+        spacings: [145, 135, 150, 130, 145, 135, 150, 135, 145, 140, 145, 140]
       }
     },
     standard: {
-      badge: 'TIÊU CHUẨN',
+      badge: 'NGƯỜI MỚI • TIÊU CHUẨN',
       timing: {
-        speed: 260,
+        speed: 235,
         progressRate: 15,
         jumpVy: -520,
-        gravity: 2400,
-        rotSpeed: 7.3,
-        positions: [280, 470, 680, 890, 1120, 1360, 1600, 1850],
-        widths: [24, 38, 24, 38, 24, 38, 24, 38],
-        heights: [30, 30, 30, 30, 30, 36, 36, 36]
+        gravity: 2350,
+        rotSpeed: 7.1,
+        positions: [290, 495, 710, 930, 1160, 1395, 1635, 1880],
+        widths: [22, 34, 22, 34, 22, 34, 22, 34],
+        heights: [26, 28, 28, 28, 30, 32, 32, 32]
       },
       wave: {
-        speed: 250,
-        vy: 210,
+        speed: 225,
+        vy: 190,
         progressRate: 14,
+        count: 12,
+        startX: 260,
+        spacing: 150,
+        baseGap: 68,
+        minGap: 54,
+        width: 40
+      },
+      ship: {
+        speed: 220,
+        progressRate: 14,
+        upAccel: -980,
+        downGravity: 860,
+        maxVy: 250,
         count: 14,
         startX: 250,
         spacing: 135,
-        baseGap: 58,
-        minGap: 44,
-        width: 42
-      },
-      ship: {
-        speed: 240,
-        progressRate: 14,
-        upAccel: -1050,
-        downGravity: 920,
-        maxVy: 280,
-        count: 16,
-        startX: 240,
-        spacing: 120,
-        baseGap: 64,
-        minGap: 64,
-        width: 70
+        baseGap: 76,
+        minGap: 70,
+        width: 68
       },
       ufo: {
-        speed: 240,
+        speed: 220,
         progressRate: 14,
-        jumpVy: -340,
-        gravity: 1400,
+        jumpVy: -330,
+        gravity: 1320,
         count: 10,
         startX: 280,
-        spacing: 175,
-        gap: 68,
+        spacing: 185,
+        gap: 78,
         width: 32
       },
       spam_click: {
-        targetCps: 9.5,
-        decay: 85
+        targetCps: 8.0,
+        decay: 75
       },
       rhythm: {
-        speed: 230,
+        speed: 210,
         count: 10,
-        hitWindow: 55,
-        penaltyMult: 1.4,
-        spacings: Array(10).fill(145)
+        hitWindow: 62,
+        penaltyMult: 1.2,
+        spacings: Array(10).fill(155)
       }
     }
   };
@@ -203,9 +203,9 @@
       for (let i = 0; i < p.count; i++) {
         const x = p.startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
-          ? 52 + ((i * 53) % 102)
-          : 65 + ((i * 37) % 80);
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.85);
+          ? 62 + ((i * 43) % 82)
+          : 68 + ((i * 33) % 72);
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.75);
         obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ship') {
@@ -214,9 +214,9 @@
       for (let i = 0; i < p.count; i++) {
         const x = p.startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
-          ? 96 + Math.sin(i * 0.95) * 42
-          : 80 + Math.sin(i * 0.8) * 32;
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.6);
+          ? 96 + Math.sin(i * 0.85) * 32
+          : 92 + Math.sin(i * 0.7) * 26;
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.55);
         obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ufo') {
@@ -225,8 +225,8 @@
       for (let i = 0; i < p.count; i++) {
         const x = p.startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
-          ? 55 + ((i * 57) % 92)
-          : 65 + ((i * 49) % 75);
+          ? 64 + ((i * 45) % 78)
+          : 68 + ((i * 41) % 68);
         obstacles.push({ x, w: p.width, topH: center - p.gap / 2, botY: center + p.gap / 2 });
       }
     } else if (mode === 'rhythm') {
