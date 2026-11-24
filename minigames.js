@@ -24,8 +24,13 @@
   let onGround = true;
   let prismPulse = 0;
   let elapsedTime = 0;
-  const GAME_DURATION = 15; // Mỗi mini-game kéo dài đúng 15 giây
+  const GAME_DURATION = 15; // Thời lượng mặc định 15 giây
+  const SPAM_CLICK_DURATION = 7; // Spam click rút ngắn còn 7 giây
   const WARMUP_SECONDS = 2.2; // Thời gian chuẩn bị tinh thần trước chướng ngại vật đầu tiên
+
+  function getModeDuration(mode) {
+    return mode === 'spam_click' ? SPAM_CLICK_DURATION : GAME_DURATION;
+  }
   let rhythmBeats = [];
   let spamClicks = [];
   let lastFrameTime = 0;
@@ -161,7 +166,7 @@
     spam_click: {
       title: 'Bài test 2: Spam click (Tốc độ nhấp CPS cao & giữ tâm)',
       maxAttempts: 1,
-      hint: 'Có 2 giây chuẩn bị, sau đó nhấp Chuột / Space liên tục thật nhanh trong 15 giây để giữ năng lượng ở mức tối đa!'
+      hint: 'Nhấp Chuột / Space liên tục thật nhanh trong 7 giây để giữ năng lượng ở mức tối đa!'
     },
     wave: {
       title: 'Bài test 3: Wave (Giữ để bay chéo lên 45°, nhả để lao xuống 45°)',
@@ -407,8 +412,9 @@
   function updatePhysics(dt) {
     if (gameState !== 'playing') return;
     const p = TIER_PARAMS[difficultyTier][activeMode];
+    const duration = getModeDuration(activeMode);
     elapsedTime += dt;
-    progress = Math.min(100, (elapsedTime / GAME_DURATION) * 100);
+    progress = Math.min(100, (elapsedTime / duration) * 100);
 
     if (activeMode === 'timing') {
       const speed = p.speed * dt;
@@ -580,7 +586,7 @@
       currentScore = elapsedTime < WARMUP_SECONDS ? Math.max(currentScore, liveScore) : liveScore;
       if (currentScore > bestSessionScore) bestSessionScore = currentScore;
       player.y = Math.min(170, player.y + p.decay * dt);
-      if (elapsedTime >= GAME_DURATION) {
+      if (elapsedTime >= duration) {
         finishAttempt(Math.max(currentScore, bestSessionScore));
       }
     } else if (activeMode === 'rhythm') {
@@ -728,10 +734,11 @@
     ctx.fillStyle = progGrad;
     ctx.fillRect(20, 10, ((W - 125) * Math.min(100, progress)) / 100, 6);
 
+    const duration = getModeDuration(activeMode);
     ctx.fillStyle = '#e9d5ff';
     ctx.font = 'bold 11px Inter, sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText(`${Math.min(GAME_DURATION, elapsedTime).toFixed(1)}s / ${GAME_DURATION}s`, W - 20, 17);
+    ctx.fillText(`${Math.min(duration, elapsedTime).toFixed(1)}s / ${duration}s`, W - 20, 17);
     ctx.textAlign = 'left';
 
     if (activeMode === 'timing') {
