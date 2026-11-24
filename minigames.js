@@ -31,7 +31,7 @@
   let spamClicks = [];
 
   let lastFrameTime = 0;
-  let difficultyTier = 'extreme'; // 'extreme' (Nâng cao) | 'standard' (Tiêu chuẩn)
+  const difficultyTier = 'standard';
 
   const GAME_DURATION = 15;
   const SPAM_CLICK_DURATION = 7;
@@ -56,18 +56,7 @@
   }
 
   const TIER_PARAMS = {
-    extreme: {
-      badge: 'NÂNG CAO',
-      penaltyPerSec: 34,
-      timing: { speed: 305, jumpVy: -545, gravity: 2700, rotSpeed: 8.5 },
-      spam_click: { speed: 270, jumpVy: -165, gravity: 980, safeHalfGap: 30, targetCps: 9.5 },
-      wave: { speed: 280, vy: 280, halfGap: 28 },
-      ship: { speed: 275, upAccel: -1120, downGravity: 980, maxVy: 280, gap: 52 },
-      ufo: { speed: 265, jumpVy: -355, gravity: 1480, gap: 58 },
-      rhythm: { speed: 285, hitWindow: 46, missPenalty: 7.5, spacings: [140, 125, 145, 120, 135, 130, 150, 125] }
-    },
     standard: {
-      badge: 'TIÊU CHUẨN',
       penaltyPerSec: 25,
       timing: { speed: 240, jumpVy: -520, gravity: 2400, rotSpeed: 7.2 },
       spam_click: { speed: 230, jumpVy: -155, gravity: 840, safeHalfGap: 40, targetCps: 7.5 },
@@ -349,8 +338,8 @@
     }
     const badgeEl = document.getElementById('minigame-tier-badge');
     if (badgeEl) {
-      badgeEl.textContent = `THE SKILL TESTER • ${TIER_PARAMS[difficultyTier].badge}`;
-      badgeEl.classList.toggle('extreme', difficultyTier === 'extreme');
+      badgeEl.textContent = 'THE SKILL TESTER';
+      badgeEl.classList.remove('extreme');
     }
   }
 
@@ -1131,30 +1120,6 @@
         }
       });
 
-      const extremeBtn = document.getElementById('qc-tier-extreme');
-      const standardBtn = document.getElementById('qc-tier-standard');
-      if (extremeBtn) {
-        extremeBtn.addEventListener('click', () => this.setDifficultyTier('extreme'));
-      }
-      if (standardBtn) {
-        standardBtn.addEventListener('click', () => this.setDifficultyTier('standard'));
-      }
-      updateHeaderUI();
-    },
-
-    setDifficultyTier(tier) {
-      if (tier !== 'extreme' && tier !== 'standard') return;
-      difficultyTier = tier;
-      const extremeBtn = document.getElementById('qc-tier-extreme');
-      const standardBtn = document.getElementById('qc-tier-standard');
-      if (extremeBtn) extremeBtn.classList.toggle('active', tier === 'extreme');
-      if (standardBtn) standardBtn.classList.toggle('active', tier === 'standard');
-
-      if (activeMode) {
-        attemptsUsed = 0;
-        gameState = 'idle';
-        generateMap(activeMode);
-      }
       updateHeaderUI();
     },
 
