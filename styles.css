@@ -245,7 +245,7 @@ body {
 .page-container {
   position: relative;
   z-index: 1;
-  max-width: 1140px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 34px 24px 80px;
 }
@@ -294,7 +294,7 @@ body {
 .content-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 32px;
+  gap: 48px;
   align-items: start;
 }
 
@@ -690,9 +690,29 @@ body {
   color: var(--text-secondary);
 }
 
+.forum-create-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.forum-create-row .gd-input,
+.forum-create-row .gd-select {
+  width: 100%;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .forum-create-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .gd-input,
 .gd-select,
 .gd-textarea {
+  min-width: 0;
+  box-sizing: border-box;
   background: rgba(13, 7, 26, 0.85);
   border: 1px solid rgba(166, 110, 255, 0.32);
   color: #ffffff;
@@ -702,6 +722,10 @@ body {
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s ease;
+}
+
+.gd-select {
+  text-overflow: ellipsis;
 }
 
 body[data-theme="light"] .gd-input,
