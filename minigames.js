@@ -171,52 +171,102 @@
         }
       }
     } else if (mode === 'spam_click') {
-      // Chế độ Ball độ khó cao: Đảo trọng lực liên hoàn + chuỗi đảo mặt dưới/mặt trên 3 bục lơ lửng giữa hầm gai
+      // Bản đồ Ball 15 giây liền mạch KHÔNG LẶP LẠI (6 phân đoạn khác biệt hoàn toàn):
       player.y = FLOOR_Y - 11;
       ballGravityDir = 1;
       onBallSurface = true;
-      const patternLen = 1360;
-      const loops = Math.max(4, Math.ceil((p.speed * (activeSec + 0.8)) / patternLen));
+      const X = (v) => leadX + v;
 
-      for (let l = 0; l < loops; l++) {
-        const base = leadX + l * patternLen;
-        const X = (v) => base + v;
-
-        // Pha 1: Đảo trọng lực dồn dập Sàn -> Trần -> Sàn -> Trần -> Sàn
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
-        }
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(125 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
-        }
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(250 + k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
-        }
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(375 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
-        }
-
-        // Pha 2: Hầm gai kép trên + dưới, buộc phải chuyền chuẩn qua 3 đảo giữa không trung (mặt dưới A -> mặt trên B -> mặt dưới C)
-        for (let sx = 505; sx <= 855; sx += 22) {
-          timingSpikes.push({ x: X(sx), y: FLOOR_Y, w: 22, h: 22, dir: 'up' });
-        }
-        for (let sx = 535; sx <= 855; sx += 22) {
-          timingSpikes.push({ x: X(sx), y: CEIL_Y, w: 22, h: 22, dir: 'down' });
-        }
-        timingBlocks.push({ x: X(515), y: 66, w: 92, h: 16, walkable: true });
-        timingBlocks.push({ x: X(632), y: 136, w: 92, h: 16, walkable: true });
-        timingBlocks.push({ x: X(750), y: 66, w: 94, h: 16, walkable: true });
-
-        // Pha 3: Trụ nhô hẹp + gai chốt tốc độ cao
-        timingBlocks.push({ x: X(985), y: FLOOR_Y - 34, w: 26, h: 34 });
-        timingSpikes.push({ x: X(985), y: FLOOR_Y - 34, w: 26, h: 22, dir: 'up' });
-
-        timingBlocks.push({ x: X(1105), y: CEIL_Y, w: 26, h: 34 });
-        timingSpikes.push({ x: X(1105), y: CEIL_Y + 34, w: 26, h: 22, dir: 'down' });
-
-        timingSpikes.push({ x: X(1225), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
-        timingSpikes.push({ x: X(1247), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+      // Phân đoạn 1 (0..640): Mở đầu nhịp bất đối xứng (Gai 3 sàn -> Gai 3 trần -> Trụ sàn -> Gai 4 trần)
+      for (let k = 0; k < 3; k++) {
+        timingSpikes.push({ x: X(k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
       }
+      for (let k = 0; k < 3; k++) {
+        timingSpikes.push({ x: X(135 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+      }
+      timingBlocks.push({ x: X(285), y: FLOOR_Y - 30, w: 28, h: 30 });
+      timingSpikes.push({ x: X(285), y: FLOOR_Y - 30, w: 28, h: 22, dir: 'up' });
+      for (let k = 0; k < 4; k++) {
+        timingSpikes.push({ x: X(410 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+      }
+      timingSpikes.push({ x: X(575), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+      timingSpikes.push({ x: X(597), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+
+      // Phân đoạn 2 (710..1410): Cầu thang 4 đảo lệch tầng giữa hầm gai kép
+      for (let sx = 720; sx <= 1340; sx += 22) {
+        timingSpikes.push({ x: X(sx), y: FLOOR_Y, w: 22, h: 21, dir: 'up' });
+      }
+      for (let sx = 750; sx <= 1340; sx += 22) {
+        timingSpikes.push({ x: X(sx), y: CEIL_Y, w: 22, h: 21, dir: 'down' });
+      }
+      timingBlocks.push({ x: X(730), y: 64, w: 96, h: 15, walkable: true });
+      timingBlocks.push({ x: X(860), y: 138, w: 92, h: 15, walkable: true });
+      timingBlocks.push({ x: X(990), y: 78, w: 92, h: 15, walkable: true });
+      timingBlocks.push({ x: X(1120), y: 124, w: 96, h: 15, walkable: true });
+      timingBlocks.push({ x: X(1250), y: 66, w: 94, h: 15, walkable: true });
+
+      // Phân đoạn 3 (1500..2260): Tường ngăn đôi 2 làn (Split-Lane Corridor) — chuyển từ làn dưới vọt qua khe lên làn trên
+      timingBlocks.push({ x: X(1505), y: 98, w: 245, h: 14, walkable: true });
+      timingSpikes.push({ x: X(1535), y: FLOOR_Y, w: 22, h: 22, dir: 'up' });
+      timingSpikes.push({ x: X(1557), y: FLOOR_Y, w: 22, h: 22, dir: 'up' });
+      // Thảm gai sàn ngay dưới khe chuyển làn để ép Ball lăn khỏi mặt dưới tường 1 bay thẳng lên trần làn trên
+      for (let sx = 1715; sx <= 1865; sx += 22) {
+        timingSpikes.push({ x: X(sx), y: FLOOR_Y, w: 22, h: 22, dir: 'up' });
+      }
+      timingBlocks.push({ x: X(1835), y: 98, w: 310, h: 14, walkable: true });
+      timingSpikes.push({ x: X(1910), y: CEIL_Y, w: 22, h: 20, dir: 'down' });
+      timingSpikes.push({ x: X(1932), y: CEIL_Y, w: 22, h: 20, dir: 'down' });
+      timingSpikes.push({ x: X(2050), y: 98, w: 20, h: 19, dir: 'up' });
+      timingSpikes.push({ x: X(2175), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+      timingSpikes.push({ x: X(2197), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+
+      // Phân đoạn 4 (2340..3050): Slalom 5 trụ răng cưa chiều cao biến thiên liên tục
+      timingBlocks.push({ x: X(2355), y: FLOOR_Y - 42, w: 26, h: 42 });
+      timingSpikes.push({ x: X(2355), y: FLOOR_Y - 42, w: 26, h: 20, dir: 'up' });
+
+      timingBlocks.push({ x: X(2490), y: CEIL_Y, w: 26, h: 52 });
+      timingSpikes.push({ x: X(2490), y: CEIL_Y + 52, w: 26, h: 20, dir: 'down' });
+
+      timingBlocks.push({ x: X(2625), y: FLOOR_Y - 56, w: 26, h: 56 });
+      timingSpikes.push({ x: X(2625), y: FLOOR_Y - 56, w: 26, h: 20, dir: 'up' });
+
+      timingBlocks.push({ x: X(2765), y: CEIL_Y, w: 26, h: 36 });
+      timingSpikes.push({ x: X(2765), y: CEIL_Y + 36, w: 26, h: 20, dir: 'down' });
+
+      timingBlocks.push({ x: X(2905), y: FLOOR_Y - 48, w: 26, h: 48 });
+      timingSpikes.push({ x: X(2905), y: FLOOR_Y - 48, w: 26, h: 20, dir: 'up' });
+      timingSpikes.push({ x: X(3015), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+
+      // Phân đoạn 5 (3130..3790): Chuỗi 5 đảo nhỏ hẹp (Micro-Islands) tốc độ cao
+      for (let sx = 3135; sx <= 3735; sx += 22) {
+        timingSpikes.push({ x: X(sx), y: FLOOR_Y, w: 22, h: 21, dir: 'up' });
+      }
+      for (let sx = 3165; sx <= 3735; sx += 22) {
+        timingSpikes.push({ x: X(sx), y: CEIL_Y, w: 22, h: 21, dir: 'down' });
+      }
+      timingBlocks.push({ x: X(3145), y: 68, w: 68, h: 14, walkable: true });
+      timingBlocks.push({ x: X(3255), y: 136, w: 68, h: 14, walkable: true });
+      timingBlocks.push({ x: X(3365), y: 62, w: 66, h: 14, walkable: true });
+      timingBlocks.push({ x: X(3475), y: 140, w: 66, h: 14, walkable: true });
+      timingBlocks.push({ x: X(3585), y: 70, w: 72, h: 14, walkable: true });
+      timingBlocks.push({ x: X(3690), y: 132, w: 72, h: 14, walkable: true });
+
+      // Phân đoạn 6 (3860..4480): Finale Hầm Thu Hẹp (Tightened Ceiling & Floor Squeeze) tới vạch 15s
+      timingSpikes.push({ x: X(3855), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+      timingSpikes.push({ x: X(3877), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+      timingBlocks.push({ x: X(3910), y: CEIL_Y, w: 560, h: 22, walkable: true });
+      timingBlocks.push({ x: X(3910), y: FLOOR_Y - 22, w: 560, h: 22, walkable: true });
+
+      timingSpikes.push({ x: X(3985), y: CEIL_Y + 22, w: 20, h: 19, dir: 'down' });
+      timingSpikes.push({ x: X(4005), y: CEIL_Y + 22, w: 20, h: 19, dir: 'down' });
+
+      timingSpikes.push({ x: X(4115), y: FLOOR_Y - 22, w: 20, h: 19, dir: 'up' });
+      timingSpikes.push({ x: X(4135), y: FLOOR_Y - 22, w: 20, h: 19, dir: 'up' });
+
+      timingSpikes.push({ x: X(4245), y: CEIL_Y + 22, w: 20, h: 19, dir: 'down' });
+      timingSpikes.push({ x: X(4265), y: CEIL_Y + 22, w: 20, h: 19, dir: 'down' });
+
+      timingSpikes.push({ x: X(4370), y: FLOOR_Y - 22, w: 20, h: 19, dir: 'up' });
     } else if (mode === 'wave') {
       // Đường hầm chéo 45° liên hoàn giống hệt khung hình Wave của The Skill Tester (yt_2.jpg)
       player.y = 105;
