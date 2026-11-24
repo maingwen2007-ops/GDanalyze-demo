@@ -1,5 +1,6 @@
-// Engine 6 bài Mini-game Thử thách nhanh (Timing, Spam click, Wave, Ship, UFO, Nhịp)
-// Hỗ trợ Chuột, Chạm màn hình (Touch) và phím Space. Wave/Ship/UFO cho thử tối đa 3 lần, lấy quãng đường xa nhất.
+// Engine 6 bài Mini-game theo chuẩn "The Skill Tester" (XcreatorGoal - ID 127401310)
+// Cơ chế Noclip-Accuracy thực thụ: Chạy trọn vẹn lượt test (15s; Spam click 7s), đo TOTAL ACCURACY (%)
+// và chấm huy chương 16 sao: PERFECT (100%), S+ (97-99%), S, A, B, C, D, F.
 
 (function () {
   let canvas, ctx;
@@ -8,384 +9,263 @@
   let isHolding = false;
   let gameState = 'idle'; // 'idle' | 'playing' | 'ended'
   let attemptsUsed = 0;
-  let maxAttempts = 1;
-  let currentScore = 0;
+  let maxAttempts = 3;
+  let currentScore = 100;
   let bestSessionScore = 0;
   let onScoreUpdateCallback = null;
 
-  // Trạng thái vật lý của mini-game
-  let player = { x: 90, y: 105, vy: 0, angle: 0, size: 16, trail: [] };
-  let progress = 0; // 0 -> 100%
-  let obstacles = [];
-  let timingPlatforms = [];
-  let timingOrbs = [];
-  let timingPads = [];
-  let orbBuffer = false;
-  let onGround = true;
-  let prismPulse = 0;
+  // Trạng thái vật lý & độ chính xác kiểu The Skill Tester
+  let player = { x: 95, y: 105, vy: 0, angle: 0, size: 22, trail: [], particles: [] };
+  let progress = 0;
   let elapsedTime = 0;
-  let liveAccuracy = 100;
-  let accuracySum = 0;
-  let accuracyCount = 0;
-  const GAME_DURATION = 15; // Thời lượng mặc định 15 giây
-  const SPAM_CLICK_DURATION = 7; // Spam click rút ngắn còn 7 giây
-  const WARMUP_SECONDS = 2.2; // Thời gian chuẩn bị tinh thần trước chướng ngại vật đầu tiên
+  let accuracyFloat = 100;
+  let isColliding = false;
+  let onGround = true;
+  let bgScrollX = 0;
+
+  let timingBlocks = [];
+  let timingSpikes = [];
+  let waveNodes = []; // Đỉnh đường hầm chéo 45° của Wave
+  let corridorGates = []; // Cổng Straight Fly (Ship) & Cột xen kẽ (UFO)
+  let rhythmBeats = [];
+  let spamClicks = [];
+
+  let lastFrameTime = 0;
+  let difficultyTier = 'extreme'; // 'extreme' (Nâng cao) | 'standard' (Tiêu chuẩn)
+
+  const GAME_DURATION = 15;
+  const SPAM_CLICK_DURATION = 7;
+  const WARMUP_SECONDS = 2.0;
+  const CEIL_Y = 26;
+  const FLOOR_Y = 184;
 
   function getModeDuration(mode) {
     return mode === 'spam_click' ? SPAM_CLICK_DURATION : GAME_DURATION;
   }
 
-  function getSkillGrade(score) {
-    if (score >= 95) return { letter: 'S', color: '#fbbf24' };
-    if (score >= 85) return { letter: 'A', color: '#34d399' };
-    if (score >= 70) return { letter: 'B', color: '#38bdf8' };
-    if (score >= 55) return { letter: 'C', color: '#a855f7' };
-    if (score >= 40) return { letter: 'D', color: '#fb923c' };
-    return { letter: 'F', color: '#fb7185' };
+  function getSkillRank(score) {
+    const s = Math.round(score);
+    if (s >= 100) return { label: 'PERFECT', short: 'P', color: '#ff00ff', ringBg: '#070b24' };
+    if (s >= 97) return { label: 'S+', short: 'S+', color: '#ff4d6d', ringBg: '#090b24' };
+    if (s >= 92) return { label: 'S', short: 'S', color: '#fbbf24', ringBg: '#090b24' };
+    if (s >= 84) return { label: 'A', short: 'A', color: '#22c55e', ringBg: '#090b24' };
+    if (s >= 72) return { label: 'B', short: 'B', color: '#38bdf8', ringBg: '#090b24' };
+    if (s >= 58) return { label: 'C', short: 'C', color: '#fb923c', ringBg: '#090b24' };
+    if (s >= 42) return { label: 'D', short: 'D', color: '#94a3b8', ringBg: '#090b24' };
+    return { label: 'F', short: 'F', color: '#ef4444', ringBg: '#090b24' };
   }
-
-  function recordAccuracySample(val) {
-    accuracySum += Math.max(0, Math.min(100, val));
-    accuracyCount++;
-    liveAccuracy = Math.round(accuracySum / accuracyCount);
-  }
-  let rhythmBeats = [];
-  let spamClicks = [];
-  let lastFrameTime = 0;
-  let difficultyTier = 'extreme'; // 'extreme' (Top Extreme Demon - Prismline) | 'standard'
 
   const TIER_PARAMS = {
     extreme: {
       badge: 'NÂNG CAO',
-      timing: {
-        speed: 335,
-        progressRate: 13.5,
-        jumpVy: -545,
-        gravity: 2700,
-        rotSpeed: 8.6,
-        positions: [280, 480, 685, 895, 1105, 1315, 1525, 1735, 1950, 2165],
-        widths: [24, 38, 26, 42, 26, 40, 44, 26, 38, 42],
-        heights: [28, 32, 34, 30, 36, 34, 32, 36, 34, 36]
-      },
-      wave: {
-        speed: 280,
-        vy: 245,
-        progressRate: 12.5,
-        count: 16,
-        startX: 260,
-        spacing: 135,
-        baseGap: 60,
-        minGap: 46,
-        width: 38
-      },
-      ship: {
-        speed: 270,
-        progressRate: 12.5,
-        upAccel: -1080,
-        downGravity: 940,
-        maxVy: 280,
-        count: 16,
-        startX: 250,
-        spacing: 120,
-        baseGap: 60,
-        minGap: 48,
-        width: 64
-      },
-      ufo: {
-        speed: 265,
-        progressRate: 13,
-        jumpVy: -345,
-        gravity: 1450,
-        count: 12,
-        startX: 270,
-        spacing: 160,
-        gap: 64,
-        width: 34
-      },
-      spam_click: {
-        targetCps: 10.5,
-        decay: 95
-      },
-      rhythm: {
-        speed: 275,
-        count: 12,
-        hitWindow: 48,
-        penaltyMult: 1.7,
-        spacings: [145, 135, 150, 130, 145, 135, 150, 135, 145, 140, 145, 140]
-      }
+      penaltyPerSec: 34,
+      timing: { speed: 305, jumpVy: -545, gravity: 2700, rotSpeed: 8.5 },
+      spam_click: { speed: 270, jumpVy: -165, gravity: 980, safeHalfGap: 30, targetCps: 9.5 },
+      wave: { speed: 280, vy: 280, halfGap: 28 },
+      ship: { speed: 275, upAccel: -1120, downGravity: 980, maxVy: 280, gap: 52 },
+      ufo: { speed: 265, jumpVy: -355, gravity: 1480, gap: 58 },
+      rhythm: { speed: 285, hitWindow: 46, missPenalty: 7.5, spacings: [140, 125, 145, 120, 135, 130, 150, 125] }
     },
     standard: {
-      badge: 'NGƯỜI MỚI • TIÊU CHUẨN',
-      timing: {
-        speed: 235,
-        progressRate: 15,
-        jumpVy: -520,
-        gravity: 2350,
-        rotSpeed: 7.1,
-        positions: [290, 495, 710, 930, 1160, 1395, 1635, 1880],
-        widths: [22, 34, 22, 34, 22, 34, 22, 34],
-        heights: [26, 28, 28, 28, 30, 32, 32, 32]
-      },
-      wave: {
-        speed: 225,
-        vy: 190,
-        progressRate: 14,
-        count: 12,
-        startX: 260,
-        spacing: 150,
-        baseGap: 68,
-        minGap: 54,
-        width: 40
-      },
-      ship: {
-        speed: 220,
-        progressRate: 14,
-        upAccel: -980,
-        downGravity: 860,
-        maxVy: 250,
-        count: 14,
-        startX: 250,
-        spacing: 135,
-        baseGap: 76,
-        minGap: 70,
-        width: 68
-      },
-      ufo: {
-        speed: 220,
-        progressRate: 14,
-        jumpVy: -330,
-        gravity: 1320,
-        count: 10,
-        startX: 280,
-        spacing: 185,
-        gap: 78,
-        width: 32
-      },
-      spam_click: {
-        targetCps: 8.0,
-        decay: 75
-      },
-      rhythm: {
-        speed: 210,
-        count: 10,
-        hitWindow: 62,
-        penaltyMult: 1.2,
-        spacings: Array(10).fill(155)
-      }
+      badge: 'TIÊU CHUẨN',
+      penaltyPerSec: 25,
+      timing: { speed: 240, jumpVy: -520, gravity: 2400, rotSpeed: 7.2 },
+      spam_click: { speed: 230, jumpVy: -155, gravity: 840, safeHalfGap: 40, targetCps: 7.5 },
+      wave: { speed: 230, vy: 230, halfGap: 38 },
+      ship: { speed: 225, upAccel: -980, downGravity: 860, maxVy: 250, gap: 68 },
+      ufo: { speed: 225, jumpVy: -335, gravity: 1340, gap: 72 },
+      rhythm: { speed: 220, hitWindow: 58, missPenalty: 5.5, spacings: [155, 150, 160, 145, 155, 150] }
     }
   };
 
   const MODE_CONFIG = {
     timing: {
-      title: 'Bài test 1: Timing — Every End 1.0 Cube (Canh mép bục & nhịp nhảy)',
+      title: 'Skill Tester 1: Cube Timing (Gai 3 & Trụ treo ngược)',
       maxAttempts: 3,
-      hint: 'Nhấn Chuột / Space đúng timing mép bục 1.0, vượt cụm gai 3 và trần thấp giống đoạn đầu Every End!'
+      hint: 'Nhấn Chuột / Space nhảy qua cụm gai 3 và luồn dưới trụ gai treo — va chạm sẽ trừ % Accuracy!'
     },
     spam_click: {
-      title: 'Bài test 2: Spam click (Tốc độ nhấp CPS cao & giữ tâm)',
-      maxAttempts: 1,
-      hint: 'Nhấp Chuột / Space liên tục thật nhanh trong 7 giây để giữ năng lượng ở mức tối đa!'
+      title: 'Skill Tester 2: Spam Consistency (Giữ tâm hành lang gai 7s)',
+      maxAttempts: 3,
+      hint: 'Nhấp liên tục đều tay trong 7 giây để giữ nhân vật nằm giữa 2 hàng gai trên/dưới mà không mất Accuracy!'
     },
     wave: {
-      title: 'Bài test 3: Wave (Giữ để bay chéo lên 45°, nhả để lao xuống 45°)',
+      title: 'Skill Tester 3: Wave Corridor (Đường hầm chéo 45° & vạch dẫn trắng)',
       maxAttempts: 3,
-      hint: 'Tối đa 3 lần thử — điểm lấy theo quãng đường xa nhất (0-100%). Giữ Chuột/Space để bay lên!'
+      hint: 'Giữ Chuột / Space để lên 45°, nhả để xuống 45° — bám sát đường dẫn trắng giữa hầm Wave!'
     },
     ship: {
-      title: 'Bài test 4: Ship (Giữ thăng bằng Straight Fly qua hành lang)',
+      title: 'Skill Tester 4: Ship Straight Fly (Hành lang cụm 3 gai)',
       maxAttempts: 3,
-      hint: 'Tối đa 3 lần thử — nhấp nhả nhịp nhàng để giữ tàu bay giữa khe hẹp.'
+      hint: 'Nhấp nhả nhịp nhàng để bay thẳng (Straight Fly) qua các cổng 3 gai mà không chạm cạnh!'
     },
     ufo: {
-      title: 'Bài test 5: UFO (Nhảy bậc thang trên không qua cột chắn)',
+      title: 'Skill Tester 5: UFO Pillars (Cột gai trên/dưới xen kẽ)',
       maxAttempts: 3,
-      hint: 'Tối đa 3 lần thử — mỗi cú click giúp UFO nảy lên một nhịp trên không.'
+      hint: 'Căn nhịp nảy UFO luồn qua chuỗi cột gai nhô cao và rủ xuống xen kẽ liên hoàn!'
     },
     rhythm: {
-      title: 'Bài test 6: Nhịp / Rhythm (Bấm đúng tâm vòng nhịp âm nhạc)',
-      maxAttempts: 1,
-      hint: 'Nhấn Chuột / Space đúng khoảnh khắc nốt nhạc chạm vào vạch vàng bên trái!'
+      title: 'Skill Tester 6: Click Sync (Chuẩn xác tâm vòng nhịp)',
+      maxAttempts: 3,
+      hint: 'Nhấn Chuột / Space đúng khoảnh khắc tâm vòng Orb chạm vạch trắng để giữ 100% Accuracy (PERFECT)!'
     }
   };
 
   function generateMap(mode) {
-    obstacles = [];
-    timingPlatforms = [];
-    timingOrbs = [];
-    timingPads = [];
-    orbBuffer = false;
-    onGround = true;
-    prismPulse = 0;
-    elapsedTime = 0;
-    liveAccuracy = 100;
-    accuracySum = 0;
-    accuracyCount = 0;
+    timingBlocks = [];
+    timingSpikes = [];
+    waveNodes = [];
+    corridorGates = [];
     rhythmBeats = [];
     spamClicks = [];
     player.trail = [];
+    player.particles = [];
     player.angle = 0;
+    player.vy = 0;
     progress = 0;
-    currentScore = 0;
+    elapsedTime = 0;
+    accuracyFloat = 100;
+    currentScore = 100;
+    isColliding = false;
+    onGround = true;
+    bgScrollX = 0;
 
     const p = TIER_PARAMS[difficultyTier][mode];
-    const activeSeconds = GAME_DURATION - WARMUP_SECONDS;
+    const duration = getModeDuration(mode);
+    const activeSec = duration - WARMUP_SECONDS;
+    const leadX = Math.round(player.x + p.speed * WARMUP_SECONDS);
 
     if (mode === 'timing') {
-      player.y = 164;
-      player.vy = 0;
+      // Giống khung hình 0:02 của The Skill Tester: Cụm 3 gai sàn xen kẽ trụ lưới 1 ô treo từ trần có mũi gai ngược
+      player.y = FLOOR_Y - 11;
       const sx = p.speed / 260;
-      const leadX = Math.round(player.x + p.speed * WARMUP_SECONDS);
+      const patternLen = Math.round(1120 * sx);
+      const loops = Math.max(3, Math.ceil((p.speed * (activeSec + 0.6)) / patternLen));
 
-      if (difficultyTier === 'extreme') {
-        // Map Every End (đoạn đầu): thuần Cube 1.0, gai đơn/đôi/ba, bục nhảy mép, trần thấp & đảo 1 ô
-        const spH = 26;
-        const loopLen = Math.round(1960 * sx);
-        const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
+      for (let l = 0; l < loops; l++) {
+        const base = leadX + l * patternLen;
+        const X = (v) => base + Math.round(v * sx);
 
-        for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
-          const base = leadX + loopIdx * loopLen;
-          const X = (v) => base + Math.round(v * sx);
-
-          // 1. Khởi đầu 1.0: gai đơn -> gai đôi sát mép
-          obstacles.push({ x: X(0), y: 176, w: 22, h: spH });
-          obstacles.push({ x: X(175), y: 176, w: 22, h: spH });
-          obstacles.push({ x: X(197), y: 176, w: 22, h: spH });
-
-          // 2. Nhảy lên bục 1.0 -> canh mép bục nhảy qua gai sàn -> đáp lên bục thứ 2
-          timingPlatforms.push({ x: X(350), y: 148, w: Math.round(78 * sx), h: 28 });
-          obstacles.push({ x: X(452), y: 176, w: 22, h: spH });
-          timingPlatforms.push({ x: X(525), y: 148, w: Math.round(72 * sx), h: 28 });
-
-          // 3. Trần thấp (Every End signature tight ceiling) + gai sàn
-          timingPlatforms.push({ x: X(675), y: 74, w: Math.round(135 * sx), h: 32, isCeiling: true });
-          obstacles.push({ x: X(715), y: 176, w: 22, h: spH });
-          obstacles.push({ x: X(737), y: 176, w: 22, h: spH });
-
-          // 4. Triple Spike 1.0 kinh điển
-          obstacles.push({ x: X(915), y: 176, w: 21, h: spH });
-          obstacles.push({ x: X(936), y: 176, w: 21, h: spH });
-          obstacles.push({ x: X(957), y: 176, w: 21, h: spH });
-
-          // 5. Bậc thang 2 tầng + gai đặt trên đỉnh trụ
-          timingPlatforms.push({ x: X(1110), y: 148, w: Math.round(62 * sx), h: 28 });
-          timingPlatforms.push({ x: X(1210), y: 120, w: Math.round(118 * sx), h: 56 });
-          obstacles.push({ x: X(1265), y: 120, w: 20, h: 24 });
-
-          // 6. Nhảy qua hố gai dài bằng Yellow Orb 1.0 -> chuỗi đảo 1 ô
-          for (let k = 0; k < 5; k++) {
-            obstacles.push({ x: X(1405) + k * 23, y: 176, w: 22, h: spH });
-          }
-          timingOrbs.push({ x: X(1445), y: 130, r: 12, type: 'yellow', used: false });
-
-          // 7. Đảo 1.0 rời rạc trên thảm gai (edge timing)
-          timingPlatforms.push({ x: X(1570), y: 148, w: Math.round(48 * sx), h: 28 });
-          obstacles.push({ x: X(1640), y: 176, w: 22, h: spH });
-          obstacles.push({ x: X(1663), y: 176, w: 22, h: spH });
-          timingPlatforms.push({ x: X(1725), y: 148, w: Math.round(52 * sx), h: 28 });
-          obstacles.push({ x: X(1845), y: 176, w: 22, h: spH });
+        // Cụm 1: 3 gai sàn -> khoảng đáp nhỏ -> 3 gai sàn + trụ treo có gai ngược phía sau
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(k * 23), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
         }
-      } else {
-        const spH = 24;
-        const loopLen = Math.round(1860 * sx);
-        const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(145 + k * 23), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
+        }
 
-        for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
-          const base = leadX + loopIdx * loopLen;
-          const X = (v) => base + Math.round(v * sx);
+        // Trụ lưới 1 ô treo từ trần xuống + gai ngược (giống hệt ảnh 0:02)
+        const pillarW = 24;
+        const pillarH = difficultyTier === 'extreme' ? 92 : 78;
+        timingBlocks.push({ x: X(275), y: CEIL_Y, w: pillarW, h: pillarH });
+        timingSpikes.push({ x: X(275), y: CEIL_Y + pillarH, w: pillarW, h: 22, dir: 'down' });
 
-          // Đoạn 1: Mở đầu — gai đơn + bục nâng cao
-          obstacles.push({ x: X(0), y: 176, w: 22, h: spH, color: '#00f0ff' });
-          timingPlatforms.push({ x: X(140), y: 146, w: Math.round(110 * sx), h: 30, hue: '#00f0ff' });
-          obstacles.push({ x: X(270), y: 176, w: 22, h: spH, color: '#a855f7' });
+        // Gai đơn trên sàn + Trụ treo thứ hai
+        timingSpikes.push({ x: X(365), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
+        timingBlocks.push({ x: X(455), y: CEIL_Y, w: pillarW, h: pillarH });
+        timingSpikes.push({ x: X(455), y: CEIL_Y + pillarH, w: pillarW, h: 22, dir: 'down' });
 
-          // Đoạn 2: Hố gai + Yellow Orb timing trên không
-          obstacles.push({ x: X(395), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-          obstacles.push({ x: X(422), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-          obstacles.push({ x: X(449), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-          timingOrbs.push({ x: X(442), y: 126, r: 13, type: 'yellow', used: false });
+        // Bục 1.0 trên sàn + nhảy qua cụm 2 gai
+        timingBlocks.push({ x: X(590), y: FLOOR_Y - 28, w: Math.round(78 * sx), h: 28, walkable: true });
+        timingSpikes.push({ x: X(695), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
+        timingSpikes.push({ x: X(718), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
 
-          // Đoạn 3: Yellow Jump Pad bật lên trụ cao + nhảy qua gai trên bục
-          timingPads.push({ x: X(590), y: 176, w: 28, h: 7, used: false });
-          timingPlatforms.push({ x: X(675), y: 118, w: Math.round(165 * sx), h: 58, hue: '#ff2ad4' });
-          obstacles.push({ x: X(752), y: 118, w: 20, h: spH - 2, color: '#00f0ff' });
-
-          // Đoạn 4: Bậc thang hạ xuống + cụm gai
-          timingPlatforms.push({ x: X(905), y: 146, w: Math.round(105 * sx), h: 30, hue: '#38bdf8' });
-          obstacles.push({ x: X(1045), y: 176, w: 22, h: spH, color: '#a855f7' });
-
-          // Đoạn 5: Chuỗi Pink Orb -> Yellow Orb qua thảm gai
-          for (let k = 0; k < 6; k++) {
-            obstacles.push({
-              x: X(1185) + k * 25,
-              y: 176,
-              w: 22,
-              h: spH,
-              color: k % 2 === 0 ? '#00f0ff' : '#ff2ad4'
-            });
-          }
-          timingOrbs.push({ x: X(1230), y: 132, r: 13, type: 'pink', used: false });
-          timingOrbs.push({ x: X(1320), y: 112, r: 13, type: 'yellow', used: false });
-          timingPlatforms.push({ x: X(1395), y: 138, w: Math.round(125 * sx), h: 38, hue: '#a855f7' });
-
-          // Đoạn 6: Finale — Orb vàng + gai chốt
-          obstacles.push({ x: X(1565), y: 176, w: 22, h: spH, color: '#00f0ff' });
-          obstacles.push({ x: X(1592), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-          timingOrbs.push({ x: X(1585), y: 124, r: 13, type: 'yellow', used: false });
-          obstacles.push({ x: X(1735), y: 176, w: 22, h: spH, color: '#00f0ff' });
+        // Trụ treo + gai đôi chốt vòng
+        timingBlocks.push({ x: X(845), y: CEIL_Y, w: pillarW, h: pillarH - 6 });
+        timingSpikes.push({ x: X(845), y: CEIL_Y + pillarH - 6, w: pillarW, h: 22, dir: 'down' });
+        timingSpikes.push({ x: X(955), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
+        if (difficultyTier === 'extreme') {
+          timingSpikes.push({ x: X(978), y: FLOOR_Y, w: 22, h: 25, dir: 'up' });
         }
       }
-    } else if (mode === 'wave') {
+    } else if (mode === 'spam_click') {
       player.y = 105;
-      player.vy = 0;
-      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
-      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
-      for (let i = 0; i < count; i++) {
-        const x = startX + i * p.spacing;
-        const center = difficultyTier === 'extreme'
-          ? 62 + ((i * 43) % 82)
-          : 68 + ((i * 33) % 72);
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.5);
-        obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
+    } else if (mode === 'wave') {
+      // Đường hầm chéo 45° liên hoàn giống hệt khung hình Wave của The Skill Tester (yt_2.jpg)
+      player.y = 105;
+      const slope = p.vy / p.speed; // = 1.0 (đúng góc 45°)
+      let curX = 0;
+      let curY = 105;
+      waveNodes.push({ x: 0, y: 105 });
+      waveNodes.push({ x: leadX - 40, y: 105 });
+      curX = leadX - 40;
+
+      // Dãy độ cao mục tiêu tạo hình chữ M / W giống video
+      const targetYs = [64, 132, 92, 146, 70, 98, 72, 100, 68, 148, 86, 138, 66, 118, 74, 142, 105];
+      const maxX = Math.round(player.x + p.speed * (duration + 1));
+      let idx = 0;
+      while (curX < maxX) {
+        const nextY = targetYs[idx % targetYs.length];
+        const dy = nextY - curY;
+        const dx = Math.max(28, Math.round(Math.abs(dy) / slope));
+        curX += dx;
+        curY = nextY;
+        waveNodes.push({ x: curX, y: curY });
+        idx++;
       }
     } else if (mode === 'ship') {
+      // Cổng Straight Fly 3 gai trên & 3 gai dưới giống hệt yt_max.jpg
       player.y = 105;
-      player.vy = 0;
-      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
-      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
+      const gateW = 66; // vừa khít 3 gai rộng 22px
+      const spacing = difficultyTier === 'extreme' ? 148 : 172;
+      const count = Math.ceil((p.speed * (activeSec + 0.8)) / spacing);
+      const centers = [105, 92, 118, 84, 105, 124, 90, 108];
       for (let i = 0; i < count; i++) {
-        const x = startX + i * p.spacing;
-        const center = difficultyTier === 'extreme'
-          ? 96 + Math.sin(i * 0.85) * 32
-          : 92 + Math.sin(i * 0.7) * 26;
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.35);
-        obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
+        const x = leadX + i * spacing;
+        const cy = centers[i % centers.length];
+        corridorGates.push({
+          x,
+          w: gateW,
+          topBlockH: Math.max(CEIL_Y + 4, cy - p.gap / 2 - 22),
+          botBlockY: Math.min(FLOOR_Y - 4, cy + p.gap / 2 + 22),
+          spikeH: 22,
+          centerY: cy
+        });
       }
     } else if (mode === 'ufo') {
-      player.y = 100;
-      player.vy = 0;
-      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
-      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
+      // Chuỗi cột lưới 1 ô nhô từ dưới & treo từ trên xen kẽ có mũi gai nhọn giống hệt yt_3.jpg
+      player.y = 105;
+      const colW = 26;
+      const spacing = difficultyTier === 'extreme' ? 112 : 138;
+      const count = Math.ceil((p.speed * (activeSec + 0.8)) / spacing);
       for (let i = 0; i < count; i++) {
-        const x = startX + i * p.spacing;
-        const center = difficultyTier === 'extreme'
-          ? 64 + ((i * 45) % 78)
-          : 68 + ((i * 41) % 68);
-        obstacles.push({ x, w: p.width, topH: center - p.gap / 2, botY: center + p.gap / 2 });
+        const x = leadX + i * spacing;
+        const fromBottom = i % 2 === 0;
+        if (fromBottom) {
+          const tipY = difficultyTier === 'extreme' ? 76 + ((i * 17) % 24) : 92 + ((i * 13) % 20);
+          corridorGates.push({ x, w: colW, type: 'up_pillar', tipY, spikeH: 22 });
+        } else {
+          const tipY = difficultyTier === 'extreme' ? 134 - ((i * 19) % 24) : 118 - ((i * 15) % 20);
+          corridorGates.push({ x, w: colW, type: 'down_pillar', tipY, spikeH: 22 });
+        }
       }
     } else if (mode === 'rhythm') {
-      let curX = Math.round(110 + p.speed * WARMUP_SECONDS);
-      const maxX = Math.round(110 + p.speed * (GAME_DURATION - 0.3));
+      let curX = Math.round(115 + p.speed * WARMUP_SECONDS);
+      const maxX = Math.round(115 + p.speed * (duration - 0.35));
       let idx = 0;
       while (curX < maxX) {
         rhythmBeats.push({
           x: curX,
+          y: 105 + ((idx % 3) - 1) * 22,
           hit: false,
           missed: false,
-          accuracy: 0
+          delta: 0
         });
         curX += p.spacings[idx % p.spacings.length];
         idx++;
       }
+    }
+  }
+
+  function spawnParticles(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      player.particles.push({
+        x: x + (Math.random() - 0.5) * 8,
+        y: y + (Math.random() - 0.5) * 6,
+        vx: -60 - Math.random() * 60,
+        vy: (Math.random() - 0.5) * 55,
+        life: 0.25 + Math.random() * 0.2
+      });
     }
   }
 
@@ -399,30 +279,20 @@
     const p = TIER_PARAMS[difficultyTier][activeMode];
 
     if (activeMode === 'timing') {
-      orbBuffer = true;
-      // Kiểm tra bấm trúng Orb ngay lập tức nếu đang ở gần
-      for (const orb of timingOrbs) {
-        if (!orb.used && Math.hypot(player.x - orb.x, player.y - orb.y) <= 36) {
-          orb.used = true;
-          orbBuffer = false;
-          onGround = false;
-          player.vy = orb.type === 'pink' ? p.jumpVy * 0.84 : p.jumpVy * 1.04;
-          return;
-        }
-      }
       if (onGround) {
         onGround = false;
-        orbBuffer = false;
         player.vy = p.jumpVy;
+        spawnParticles(player.x - 6, player.y + 10, 5);
       }
     } else if (activeMode === 'ufo') {
       player.vy = p.jumpVy;
+      spawnParticles(player.x - 6, player.y + 6, 4);
     } else if (activeMode === 'spam_click') {
       spamClicks.push(performance.now());
-      player.y = Math.max(30, player.y - 11);
+      player.vy = p.jumpVy;
+      spawnParticles(player.x - 6, player.y + 4, 3);
     } else if (activeMode === 'rhythm') {
-      // Tìm nốt gần vạch targetX = 110 nhất
-      const targetX = 110;
+      const targetX = 115;
       let nearest = null;
       let minDist = 999;
       rhythmBeats.forEach((b) => {
@@ -434,9 +304,14 @@
           }
         }
       });
-      if (nearest && minDist < p.hitWindow) {
+      if (nearest && minDist <= p.hitWindow) {
         nearest.hit = true;
-        nearest.accuracy = Math.max(25, Math.round(100 - minDist * p.penaltyMult));
+        nearest.delta = minDist;
+        // Bấm lệch nhẹ trừ một phần nhỏ Accuracy ("100% Accuracy but not perfect" nếu lệch > 10px)
+        if (minDist > 10) {
+          accuracyFloat = Math.max(0, accuracyFloat - ((minDist - 10) / p.hitWindow) * 3.2);
+        }
+        spawnParticles(targetX, nearest.y, 6);
       }
     }
   }
@@ -469,86 +344,75 @@
   function updateHeaderUI() {
     const metaEl = document.getElementById('minigame-attempt-info');
     if (metaEl && activeMode) {
-      const grade = getSkillGrade(bestSessionScore);
-      metaEl.textContent = `Lượt thử: ${attemptsUsed}/${maxAttempts} • Cao nhất: ${bestSessionScore}% (Hạng ${grade.letter})`;
+      const rk = getSkillRank(bestSessionScore);
+      metaEl.textContent = `Lượt: ${attemptsUsed}/${maxAttempts} • Kỷ lục: ${bestSessionScore}% (${rk.label})`;
     }
     const badgeEl = document.getElementById('minigame-tier-badge');
     if (badgeEl) {
-      badgeEl.textContent = `SKILL TESTER • ${TIER_PARAMS[difficultyTier].badge}`;
+      badgeEl.textContent = `THE SKILL TESTER • ${TIER_PARAMS[difficultyTier].badge}`;
       badgeEl.classList.toggle('extreme', difficultyTier === 'extreme');
     }
   }
 
+  function getWaveCenterAt(x) {
+    if (waveNodes.length < 2) return 105;
+    for (let i = 0; i < waveNodes.length - 1; i++) {
+      const a = waveNodes[i];
+      const b = waveNodes[i + 1];
+      if (x >= a.x && x <= b.x) {
+        const t = (x - a.x) / Math.max(1, b.x - a.x);
+        return a.y + (b.y - a.y) * t;
+      }
+    }
+    return waveNodes[waveNodes.length - 1].y;
+  }
+
   function updatePhysics(dt) {
     if (gameState !== 'playing') return;
-    const p = TIER_PARAMS[difficultyTier][activeMode];
+    const tier = TIER_PARAMS[difficultyTier];
+    const p = tier[activeMode];
     const duration = getModeDuration(activeMode);
+
     elapsedTime += dt;
     progress = Math.min(100, (elapsedTime / duration) * 100);
+    const dx = (p.speed || 240) * dt;
+    bgScrollX = (bgScrollX + dx * 0.45) % 56;
+    isColliding = false;
+
+    // Cập nhật hạt bụi trắng
+    for (let i = player.particles.length - 1; i >= 0; i--) {
+      const pt = player.particles[i];
+      pt.x += pt.vx * dt;
+      pt.y += pt.vy * dt;
+      pt.life -= dt;
+      if (pt.life <= 0) player.particles.splice(i, 1);
+    }
 
     if (activeMode === 'timing') {
-      const speed = p.speed * dt;
-      prismPulse += dt * 4.5;
       const prevY = player.y;
-
       player.vy += p.gravity * dt;
       player.y += player.vy * dt;
       onGround = false;
 
-      // Di chuyển toàn bộ thành phần map Prismline
-      for (const plat of timingPlatforms) plat.x -= speed;
-      for (const orb of timingOrbs) orb.x -= speed;
-      for (const pad of timingPads) pad.x -= speed;
-      for (const ob of obstacles) ob.x -= speed;
+      timingBlocks.forEach((b) => (b.x -= dx));
+      timingSpikes.forEach((s) => (s.x -= dx));
 
-      // Jump Pad vàng tự động bật cao
-      for (const pad of timingPads) {
-        if (
-          !pad.used &&
-          player.x + 11 > pad.x &&
-          player.x - 11 < pad.x + pad.w &&
-          player.y + 12 >= pad.y - pad.h - 4 &&
-          player.y - 12 <= pad.y
-        ) {
-          pad.used = true;
-          player.vy = p.jumpVy * 1.24;
-          onGround = false;
-        }
-      }
-
-      // Orb buffer trên không (giống Geometry Dash)
-      if (orbBuffer) {
-        for (const orb of timingOrbs) {
-          if (!orb.used && Math.hypot(player.x - orb.x, player.y - orb.y) <= 36) {
-            orb.used = true;
-            orbBuffer = false;
-            onGround = false;
-            player.vy = orb.type === 'pink' ? p.jumpVy * 0.84 : p.jumpVy * 1.04;
-            break;
-          }
-        }
-      }
-
-      // Va chạm bục khối (đứng trên mặt bục an toàn; chạm mặt dưới trần hoặc đâm ngang cạnh trước thì thua)
-      for (const plat of timingPlatforms) {
-        if (player.x + 11 > plat.x && player.x - 11 < plat.x + plat.w) {
-          if (prevY + 12 <= plat.y + 10 && player.vy >= 0 && player.y + 12 >= plat.y) {
-            player.y = plat.y - 12;
+      // Đứng trên bục 1.0 walkable, còn đâm vào trụ treo hoặc cạnh trước bục thì tính chạm hitbox
+      for (const b of timingBlocks) {
+        if (player.x + 9 > b.x && player.x - 9 < b.x + b.w) {
+          if (b.walkable && prevY + 11 <= b.y + 10 && player.vy >= 0 && player.y + 11 >= b.y) {
+            player.y = b.y - 11;
             player.vy = 0;
             onGround = true;
-          } else if (plat.isCeiling && prevY - 12 >= plat.y + plat.h - 10 && player.y - 12 <= plat.y + plat.h) {
-            finishAttempt(progress);
-            return;
-          } else if (player.y + 10 > plat.y + 10 && player.y - 10 < plat.y + plat.h && player.x + 10 > plat.x + 4) {
-            finishAttempt(progress);
-            return;
+          } else if (player.y + 9 > b.y + 2 && player.y - 9 < b.y + b.h - 2) {
+            isColliding = true;
           }
         }
       }
 
-      // Mặt đất (y = 176 -> tâm Cube ở 164)
-      if (player.y >= 164) {
-        player.y = 164;
+      if (player.y >= FLOOR_Y - 11) {
+        if (!onGround && player.vy > 120) spawnParticles(player.x - 4, FLOOR_Y - 2, 4);
+        player.y = FLOOR_Y - 11;
         player.vy = 0;
         onGround = true;
       }
@@ -557,228 +421,366 @@
         player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
         if (isHolding) {
           onGround = false;
-          orbBuffer = false;
           player.vy = p.jumpVy;
+          spawnParticles(player.x - 6, FLOOR_Y - 2, 4);
         }
       } else {
         player.angle += p.rotSpeed * dt;
       }
 
-      player.trail.push({ x: player.x, y: player.y });
-      if (player.trail.length > 26) player.trail.shift();
-      player.trail.forEach((pt) => (pt.x -= speed));
-
-      // Hitbox gai pha lê (thu gọn nhẹ giống Geometry Dash)
-      for (const ob of obstacles) {
-        const baseY = ob.y || 176;
-        if (
-          player.x + 8 > ob.x + 4 &&
-          player.x - 8 < ob.x + ob.w - 4 &&
-          player.y + 10 > baseY - ob.h + 7 &&
-          player.y - 10 < baseY
-        ) {
-          finishAttempt(progress);
-          return;
-        }
-      }
-      currentScore = Math.round(progress);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
-    } else if (activeMode === 'wave') {
-      const speed = p.speed * dt;
-      player.vy = isHolding ? -p.vy : p.vy;
-      player.y += player.vy * dt;
-      player.trail.push({ x: player.x, y: player.y });
-      if (player.trail.length > 35) player.trail.shift();
-      player.trail.forEach((pt) => (pt.x -= speed));
-
-      if (player.y < 14 || player.y > 196) {
-        finishAttempt(progress);
-        return;
-      }
-      for (const ob of obstacles) {
-        ob.x -= speed;
-        if (player.x + 8 > ob.x && player.x - 8 < ob.x + ob.w) {
-          if (player.y - 7 < ob.topH || player.y + 7 > ob.botY) {
-            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
-            return;
+      // Kiểm tra chạm gai (sàn & gai ngược trên trụ)
+      for (const s of timingSpikes) {
+        if (player.x + 7 > s.x + 4 && player.x - 7 < s.x + s.w - 4) {
+          if (s.dir === 'up') {
+            if (player.y + 9 > s.y - s.h + 6 && player.y - 9 < s.y) isColliding = true;
+          } else {
+            if (player.y - 9 < s.y + s.h - 6 && player.y + 9 > s.y) isColliding = true;
           }
-          const center = (ob.topH + ob.botY) / 2;
-          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
-          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
         }
       }
-      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
-    } else if (activeMode === 'ship') {
-      const speed = p.speed * dt;
-      player.vy += (isHolding ? p.upAccel : p.downGravity) * dt;
-      player.vy = Math.max(-p.maxVy, Math.min(p.maxVy, player.vy));
-      player.y += player.vy * dt;
-      player.angle = Math.atan2(player.vy, p.speed) * 0.85;
-      player.trail.push({ x: player.x, y: player.y });
-      if (player.trail.length > 28) player.trail.shift();
-      player.trail.forEach((pt) => (pt.x -= speed));
 
-      if (player.y < 14 || player.y > 196) {
-        finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
-        return;
-      }
-      for (const ob of obstacles) {
-        ob.x -= speed;
-        if (player.x + 10 > ob.x && player.x - 10 < ob.x + ob.w) {
-          if (player.y - 9 < ob.topH || player.y + 9 > ob.botY) {
-            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
-            return;
-          }
-          const center = (ob.topH + ob.botY) / 2;
-          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
-          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
-        }
-      }
-      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
-    } else if (activeMode === 'ufo') {
-      const speed = p.speed * dt;
-      player.vy += p.gravity * dt;
-      player.y += player.vy * dt;
-
-      if (player.y < 14 || player.y > 196) {
-        finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
-        return;
-      }
-      for (const ob of obstacles) {
-        ob.x -= speed;
-        if (player.x + 10 > ob.x && player.x - 10 < ob.x + ob.w) {
-          if (player.y - 9 < ob.topH || player.y + 9 > ob.botY) {
-            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
-            return;
-          }
-          const center = (ob.topH + ob.botY) / 2;
-          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
-          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
-        }
-      }
-      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
+      player.trail.push({ x: player.x, y: player.y + 8 });
+      if (player.trail.length > 65) player.trail.shift();
+      player.trail.forEach((pt) => (pt.x -= dx));
     } else if (activeMode === 'spam_click') {
       const now = performance.now();
       spamClicks = spamClicks.filter((t) => now - t < 1000);
-      const cps = spamClicks.length;
-      const liveScore = Math.min(100, Math.round((cps / p.targetCps) * 100));
-      currentScore = elapsedTime < WARMUP_SECONDS ? Math.max(currentScore, liveScore) : liveScore;
-      if (currentScore > bestSessionScore) bestSessionScore = currentScore;
-      player.y = Math.min(170, player.y + p.decay * dt);
-      if (elapsedTime >= duration) {
-        finishAttempt(Math.max(currentScore, bestSessionScore));
+      player.vy += p.gravity * dt;
+      player.vy = Math.max(-240, Math.min(240, player.vy));
+      player.y += player.vy * dt;
+
+      if (player.y < CEIL_Y + 12) {
+        player.y = CEIL_Y + 12;
+        player.vy = 0;
       }
-    } else if (activeMode === 'rhythm') {
-      const speed = p.speed * dt;
-      rhythmBeats.forEach((b) => {
-        b.x -= speed;
-        if (b.x < 50 && !b.hit) {
-          b.missed = true;
+      if (player.y > FLOOR_Y - 12) {
+        player.y = FLOOR_Y - 12;
+        player.vy = 0;
+      }
+
+      // Ra ngoài hành lang an toàn giữa 2 hàng gai (sau giai đoạn chạy đà 1.2s) sẽ trừ Accuracy
+      if (elapsedTime > 1.2 && Math.abs(player.y - 105) > p.safeHalfGap) {
+        isColliding = true;
+      }
+
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 65) player.trail.shift();
+      player.trail.forEach((pt) => (pt.x -= dx));
+    } else if (activeMode === 'wave') {
+      player.vy = isHolding ? -p.vy : p.vy;
+      player.y += player.vy * dt;
+      player.y = Math.max(CEIL_Y + 6, Math.min(FLOOR_Y - 6, player.y));
+      player.angle = isHolding ? -Math.PI / 4 : Math.PI / 4;
+
+      waveNodes.forEach((n) => (n.x -= dx));
+      const centerY = getWaveCenterAt(player.x);
+      if (elapsedTime > WARMUP_SECONDS * 0.85 && Math.abs(player.y - centerY) > p.halfGap) {
+        isColliding = true;
+      }
+
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 75) player.trail.shift();
+      player.trail.forEach((pt) => (pt.x -= dx));
+    } else if (activeMode === 'ship') {
+      player.vy += (isHolding ? p.upAccel : p.downGravity) * dt;
+      player.vy = Math.max(-p.maxVy, Math.min(p.maxVy, player.vy));
+      player.y += player.vy * dt;
+      if (player.y < CEIL_Y + 9) {
+        player.y = CEIL_Y + 9;
+        player.vy = 0;
+        isColliding = true;
+      }
+      if (player.y > FLOOR_Y - 9) {
+        player.y = FLOOR_Y - 9;
+        player.vy = 0;
+        isColliding = true;
+      }
+      player.angle = Math.atan2(player.vy, p.speed) * 0.75;
+
+      corridorGates.forEach((g) => {
+        g.x -= dx;
+        if (player.x + 9 > g.x + 3 && player.x - 9 < g.x + g.w - 3) {
+          const safeTop = g.topBlockH + g.spikeH - 4;
+          const safeBot = g.botBlockY - g.spikeH + 4;
+          if (player.y - 8 < safeTop || player.y + 8 > safeBot) {
+            isColliding = true;
+          }
         }
       });
-      const doneBeats = rhythmBeats.filter((b) => b.hit || b.missed);
-      const totalAcc = rhythmBeats.reduce((acc, b) => acc + (b.hit ? b.accuracy : 0), 0);
-      currentScore = doneBeats.length > 0 ? Math.round(totalAcc / doneBeats.length) : 0;
-      if (elapsedTime >= GAME_DURATION) {
-        const finalAcc = rhythmBeats.length > 0 ? Math.round(totalAcc / rhythmBeats.length) : 0;
-        finishAttempt(finalAcc);
+
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 65) player.trail.shift();
+      player.trail.forEach((pt) => (pt.x -= dx));
+    } else if (activeMode === 'ufo') {
+      player.vy += p.gravity * dt;
+      player.vy = Math.min(340, player.vy);
+      player.y += player.vy * dt;
+      if (player.y < CEIL_Y + 10) {
+        player.y = CEIL_Y + 10;
+        player.vy = 0;
+        isColliding = true;
       }
+      if (player.y > FLOOR_Y - 10) {
+        player.y = FLOOR_Y - 10;
+        player.vy = 0;
+      }
+
+      corridorGates.forEach((g) => {
+        g.x -= dx;
+        if (player.x + 9 > g.x + 3 && player.x - 9 < g.x + g.w - 3) {
+          if (g.type === 'up_pillar') {
+            if (player.y + 9 > g.tipY + 4) isColliding = true;
+          } else {
+            if (player.y - 9 < g.tipY - 4) isColliding = true;
+          }
+        }
+      });
+
+      player.trail.push({ x: player.x, y: player.y });
+      if (player.trail.length > 65) player.trail.shift();
+      player.trail.forEach((pt) => (pt.x -= dx));
+    } else if (activeMode === 'rhythm') {
+      rhythmBeats.forEach((b) => {
+        b.x -= dx;
+        if (b.x < 68 && !b.hit && !b.missed) {
+          b.missed = true;
+          accuracyFloat = Math.max(0, accuracyFloat - p.missPenalty);
+        }
+      });
+    }
+
+    if (isColliding) {
+      accuracyFloat = Math.max(0, accuracyFloat - tier.penaltyPerSec * dt);
+    }
+
+    currentScore = Math.max(0, Math.min(100, Math.round(accuracyFloat)));
+    if (elapsedTime >= duration) {
+      finishAttempt(currentScore);
     }
   }
 
-  function drawGDCube(cx, cy, size, angle) {
+  // Vẽ khối lưới 1.0 xanh đen viền trắng giống The Skill Tester
+  function drawGridBlock(x, y, w, h) {
+    ctx.save();
+    ctx.fillStyle = '#030d26';
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = 'rgba(28, 86, 196, 0.65)';
+    ctx.lineWidth = 1;
+    const step = 12;
+    for (let gx = x + step; gx < x + w; gx += step) {
+      ctx.beginPath();
+      ctx.moveTo(gx, y);
+      ctx.lineTo(gx, y + h);
+      ctx.stroke();
+    }
+    for (let gy = y + step; gy < y + h; gy += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, gy);
+      ctx.lineTo(x + w, gy);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8;
+    ctx.strokeRect(x, y, w, h);
+    ctx.restore();
+  }
+
+  // Vẽ gai đen viền trắng phát sáng nhẹ chuẩn Geometry Dash 1.0
+  function drawClassicSpike(x, baseY, w, h, dir) {
+    ctx.save();
+    ctx.fillStyle = '#030712';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    if (dir === 'up') {
+      ctx.moveTo(x, baseY);
+      ctx.lineTo(x + w / 2, baseY - h);
+      ctx.lineTo(x + w, baseY);
+    } else {
+      ctx.moveTo(x, baseY);
+      ctx.lineTo(x + w / 2, baseY + h);
+      ctx.lineTo(x + w, baseY);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Icon Cube thỏ trắng ">w<" giống trong video The Skill Tester (0:02 & yt_max.jpg)
+  function drawSkillTesterCube(cx, cy, size, angle) {
     const half = size / 2;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
 
-    // Thân Cube xanh lá viền đen chuẩn icon/logo Geometry Dash
-    ctx.fillStyle = '#6dff00';
-    ctx.strokeStyle = '#09050f';
-    ctx.lineWidth = Math.max(1.5, size * 0.08);
-    ctx.fillRect(-half, -half, size, size);
-    ctx.strokeRect(-half, -half, size, size);
+    ctx.fillStyle = isColliding ? '#fda4af' : '#f8f7ff';
+    ctx.strokeStyle = '#090514';
+    ctx.lineWidth = 1.8;
 
-    // Hai mắt vuông và miệng ngang màu xanh cyan viền đen
-    ctx.fillStyle = '#00f0ff';
-    const eyeSize = size * 0.2;
-    const eyeY = -size * 0.22;
-    const eyeOffsetX = size * 0.22;
+    // Khối có khuyết tai thỏ phía trên giống icon trong video
+    ctx.beginPath();
+    ctx.moveTo(-half, -half);
+    ctx.lineTo(-half + size * 0.3, -half);
+    ctx.lineTo(-half + size * 0.3, -half + size * 0.26);
+    ctx.lineTo(half - size * 0.3, -half + size * 0.26);
+    ctx.lineTo(half - size * 0.3, -half);
+    ctx.lineTo(half, -half);
+    ctx.lineTo(half, half);
+    ctx.lineTo(-half, half);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
 
-    // Mắt trái & mắt phải
-    ctx.fillRect(-eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
-    ctx.strokeRect(-eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
-    ctx.fillRect(eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
-    ctx.strokeRect(eyeOffsetX - eyeSize / 2, eyeY, eyeSize, eyeSize);
+    // Lõi tai tím nhạt
+    ctx.fillStyle = '#a5b4fc';
+    ctx.fillRect(-half + 2.5, -half + 2.5, size * 0.16, size * 0.22);
+    ctx.fillRect(half - 2.5 - size * 0.16, -half + 2.5, size * 0.16, size * 0.22);
 
-    // Miệng ngang
-    const mouthW = size * 0.64;
-    const mouthH = size * 0.16;
-    const mouthY = size * 0.12;
-    ctx.fillRect(-mouthW / 2, mouthY, mouthW, mouthH);
-    ctx.strokeRect(-mouthW / 2, mouthY, mouthW, mouthH);
+    // Biểu cảm >w<
+    ctx.fillStyle = '#090514';
+    ctx.font = `bold ${Math.max(7, Math.round(size * 0.36))}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('>w<', 0, half - size * 0.2);
 
     ctx.restore();
   }
 
-  function drawGDShip(cx, cy, angle) {
+  function drawSkillTesterShip(cx, cy, angle) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
 
-    // Cube mini ngồi trên bệ lái Ship
-    drawGDCube(1, -6, 11, 0);
+    drawSkillTesterCube(-1, -5, 12, 0);
 
+    // Thân tàu cánh trắng viền đen giống yt_max.jpg
+    ctx.fillStyle = isColliding ? '#fda4af' : '#f8f7ff';
+    ctx.strokeStyle = '#090514';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(-15, 0);
+    ctx.lineTo(-8, -2);
+    ctx.lineTo(5, -2);
+    ctx.lineTo(10, -7);
+    ctx.lineTo(17, 2);
+    ctx.lineTo(8, 8);
+    ctx.lineTo(-12, 7);
+    ctx.lineTo(-9, 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#090514';
+    ctx.beginPath();
+    ctx.arc(10, 2, 1.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSkillTesterWave(cx, cy, angle) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.fillStyle = isColliding ? '#fda4af' : '#f8f7ff';
+    ctx.strokeStyle = '#090514';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-9, -8);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(-9, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSkillTesterUFO(cx, cy) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    // Vòm kính xanh nhạt + Cube nhỏ
+    ctx.fillStyle = 'rgba(125, 211, 252, 0.45)';
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, -2, 9, Math.PI, 0);
+    ctx.fill();
+    ctx.stroke();
+
+    drawSkillTesterCube(0, -4, 10, 0);
+
+    // Đĩa bay trắng viền đen
+    ctx.fillStyle = isColliding ? '#fda4af' : '#f8f7ff';
+    ctx.strokeStyle = '#090514';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(0, 3, 14, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Huy chương tròn 16 ngôi sao chuẩn The Skill Tester (yt_max.jpg & yt_1.jpg)
+  function drawRankStamp(cx, cy, radius, score) {
+    const rk = getSkillRank(score);
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // Viền trắng ngoài cùng
+    ctx.beginPath();
+    ctx.arc(0, 0, radius + 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    // Vòng đen + Vòng màu neon
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.fillStyle = rk.ringBg;
+    ctx.fill();
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = rk.color;
+    ctx.stroke();
+
+    // Vòng trong
+    const innerR = radius * 0.66;
+    ctx.beginPath();
+    ctx.arc(0, 0, innerR, 0, Math.PI * 2);
     ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.strokeStyle = '#09050f';
-
-    // Thân tàu xanh lá (#6dff00) viền đen theo mẫu GDTS_Ship
-    ctx.fillStyle = '#6dff00';
-
-    // Ống xả động cơ phía sau
-    ctx.fillRect(-16, -1, 3, 7);
-    ctx.strokeRect(-16, -1, 3, 7);
-
-    // Đuôi loe phía sau
-    ctx.beginPath();
-    ctx.moveTo(-13, -4);
-    ctx.lineTo(-7, 0);
-    ctx.lineTo(-7, 8);
-    ctx.lineTo(-13, 9);
-    ctx.closePath();
-    ctx.fill();
+    ctx.strokeStyle = rk.color;
     ctx.stroke();
 
-    // Khoang giữa
-    ctx.fillRect(-7, 0, 11, 8);
-    ctx.strokeRect(-7, 0, 11, 8);
+    // 14 ngôi sao nhỏ chạy quanh vành huy chương
+    const starOrbit = (radius + innerR) / 2;
+    const starCount = 14;
+    ctx.fillStyle = rk.color;
+    for (let i = 0; i < starCount; i++) {
+      const a = (i / starCount) * Math.PI * 2 - Math.PI / 2;
+      const sx = Math.cos(a) * starOrbit;
+      const sy = Math.sin(a) * starOrbit;
+      ctx.beginPath();
+      for (let p = 0; p < 10; p++) {
+        const sr = p % 2 === 0 ? radius * 0.085 : radius * 0.038;
+        const sa = a + (p * Math.PI) / 5;
+        if (p === 0) ctx.moveTo(sx + Math.cos(sa) * sr, sy + Math.sin(sa) * sr);
+        else ctx.lineTo(sx + Math.cos(sa) * sr, sy + Math.sin(sa) * sr);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
 
-    // Mũi tàu vát nhọn phía trước
-    ctx.beginPath();
-    ctx.moveTo(4, 0);
-    ctx.lineTo(16, 2);
-    ctx.lineTo(16, 6);
-    ctx.lineTo(4, 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // Bệ ngồi / cánh chữ L màu xanh cyan (#00f0ff) viền đen phía trên
-    ctx.fillStyle = '#00f0ff';
-    ctx.beginPath();
-    ctx.moveTo(-9, -11);
-    ctx.lineTo(-6, -11);
-    ctx.lineTo(-6, -5);
-    ctx.lineTo(11, -3);
-    ctx.lineTo(11, 0);
-    ctx.lineTo(-9, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    // Chữ PERFECT / S+ / S / A...
+    ctx.fillStyle = rk.color;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    const fontSize = rk.label.length > 3 ? Math.round(radius * 0.25) : Math.round(radius * 0.5);
+    ctx.font = `900 ${fontSize}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.strokeText(rk.label, 0, 1);
+    ctx.fillText(rk.label, 0, 1);
 
     ctx.restore();
   }
@@ -790,405 +792,292 @@
 
     ctx.clearRect(0, 0, W, H);
 
-    // Lưới nền kiểu Geometry Dash
-    ctx.strokeStyle = 'rgba(166, 110, 255, 0.1)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 35) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, H);
-      ctx.stroke();
+    // 1. Nền xanh dương Royal Blue chuẩn Geometry Dash / The Skill Tester
+    ctx.fillStyle = '#1155cc';
+    ctx.fillRect(0, 0, W, H);
+
+    // Các ô vuông nền xanh đậm trôi parallax nhẹ giống 0:02 & yt_max.jpg
+    ctx.fillStyle = '#0d47b0';
+    ctx.strokeStyle = '#0a3b96';
+    ctx.lineWidth = 1.5;
+    for (let bx = -bgScrollX; bx < W + 60; bx += 56) {
+      ctx.fillRect(bx + 6, 36, 42, 42);
+      ctx.strokeRect(bx + 6, 36, 42, 42);
+      ctx.fillRect(bx + 20, 92, 34, 34);
+      ctx.strokeRect(bx + 20, 92, 34, 34);
+      ctx.fillRect(bx + 4, 134, 44, 40);
+      ctx.strokeRect(bx + 4, 134, 44, 40);
     }
-    for (let y = 0; y < H; y += 35) {
+
+    // 2. Vẽ từng chế độ chơi theo đúng bố cục video The Skill Tester
+    if (activeMode === 'wave' && waveNodes.length > 1) {
+      const p = TIER_PARAMS[difficultyTier].wave;
+      // Phần ngoài đường hầm Wave phủ lưới xanh đen 1.0 + viền trắng dốc 45° giống yt_2.jpg
+      ctx.save();
+      ctx.fillStyle = '#041238';
+
+      // Mảng tường trên đường hầm Wave
       ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(W, y);
+      ctx.moveTo(waveNodes[0].x, CEIL_Y);
+      waveNodes.forEach((n) => ctx.lineTo(n.x, n.y - p.halfGap));
+      ctx.lineTo(waveNodes[waveNodes.length - 1].x, CEIL_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      // Mảng tường dưới đường hầm Wave
+      ctx.beginPath();
+      ctx.moveTo(waveNodes[0].x, FLOOR_Y);
+      waveNodes.forEach((n) => ctx.lineTo(n.x, n.y + p.halfGap));
+      ctx.lineTo(waveNodes[waveNodes.length - 1].x, FLOOR_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      // Kẻ lưới mảnh trên phần tường Wave
+      ctx.strokeStyle = 'rgba(32, 96, 210, 0.35)';
+      ctx.lineWidth = 1;
+      for (let gx = 0; gx < W; gx += 14) {
+        ctx.beginPath();
+        ctx.moveTo(gx, CEIL_Y);
+        ctx.lineTo(gx, FLOOR_Y);
+        ctx.stroke();
+      }
+
+      // Hai đường biên trắng dốc 45°
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      waveNodes.forEach((n, i) => {
+        if (i === 0) ctx.moveTo(n.x, n.y - p.halfGap);
+        else ctx.lineTo(n.x, n.y - p.halfGap);
+      });
       ctx.stroke();
-    }
 
-    // Thanh tiến độ + HUD Accuracy & Rank Grade kiểu The Skill Tester
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.fillRect(20, 10, W - 245, 6);
-    const progGrad = ctx.createLinearGradient(20, 0, W - 225, 0);
-    progGrad.addColorStop(0, '#00f0ff');
-    progGrad.addColorStop(0.5, '#a66eff');
-    progGrad.addColorStop(1, '#34d399');
-    ctx.fillStyle = progGrad;
-    ctx.fillRect(20, 10, ((W - 245) * Math.min(100, progress)) / 100, 6);
+      ctx.beginPath();
+      waveNodes.forEach((n, i) => {
+        if (i === 0) ctx.moveTo(n.x, n.y + p.halfGap);
+        else ctx.lineTo(n.x, n.y + p.halfGap);
+      });
+      ctx.stroke();
 
-    const duration = getModeDuration(activeMode);
-    const liveVal = activeMode === 'timing' ? currentScore : (activeMode === 'spam_click' || activeMode === 'rhythm' ? currentScore : liveAccuracy);
-    const liveGrade = getSkillGrade(liveVal);
-    ctx.font = 'bold 11px Inter, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillStyle = liveGrade.color;
-    ctx.fillText(`ACC ${liveVal}% [${liveGrade.letter}]`, W - 95, 17);
-    ctx.fillStyle = '#e9d5ff';
-    ctx.fillText(`${Math.min(duration, elapsedTime).toFixed(1)}s / ${duration}s`, W - 20, 17);
-    ctx.textAlign = 'left';
-
-    if (activeMode === 'timing') {
-      const isEveryEnd = difficultyTier === 'extreme';
-      if (isEveryEnd) {
-        // Nền xanh dương đậm 1.0 + hiệu ứng Background Preview nhiều lớp đặc trưng của Every End
-        const eeBg = ctx.createLinearGradient(0, 22, 0, 176);
-        eeBg.addColorStop(0, '#07123b');
-        eeBg.addColorStop(1, '#132d7a');
-        ctx.fillStyle = eeBg;
-        ctx.fillRect(0, 22, W, 154);
-
-        // Lớp Background Preview (hình bóng layout sắp tới chạy parallax ở hậu cảnh)
-        ctx.save();
-        ctx.globalAlpha = 0.22;
-        ctx.strokeStyle = '#93c5fd';
-        ctx.fillStyle = 'rgba(4, 10, 32, 0.75)';
-        ctx.lineWidth = 1;
-        const previewShift = -260;
-        timingPlatforms.forEach((plat) => {
-          const px = (plat.x + previewShift) * 0.78 + 110;
-          const py = 36 + (plat.y - 36) * 0.78;
-          const pw = plat.w * 0.78;
-          const ph = plat.h * 0.78;
-          if (px + pw < -20 || px > W + 20) return;
-          ctx.fillRect(px, py, pw, ph);
-          ctx.strokeRect(px, py, pw, ph);
-        });
-        obstacles.forEach((ob) => {
-          const ox = (ob.x + previewShift) * 0.78 + 110;
-          const oy = 36 + ((ob.y || 176) - 36) * 0.78;
-          const ow = ob.w * 0.78;
-          const oh = ob.h * 0.78;
-          if (ox + ow < -20 || ox > W + 20) return;
-          ctx.beginPath();
-          ctx.moveTo(ox, oy);
-          ctx.lineTo(ox + ow / 2, oy - oh);
-          ctx.lineTo(ox + ow, oy);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-        });
-        ctx.restore();
-
-        // Mặt đất xanh đậm 1.0 viền trắng sắc nét
-        ctx.fillStyle = '#060e2e';
-        ctx.fillRect(0, 176, W, H - 176);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 176);
-        ctx.lineTo(W, 176);
-        ctx.stroke();
-      } else {
-        // Nền glow chuyển sắc theo tiến độ + tia sáng lăng kính
-        const pulse = 0.5 + 0.5 * Math.sin(prismPulse);
-        const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-        bgGrad.addColorStop(0, `rgba(14, 24, 58, ${0.42 + pulse * 0.12})`);
-        bgGrad.addColorStop(0.5, `rgba(76, 20, 128, ${0.34 + pulse * 0.12})`);
-        bgGrad.addColorStop(1, `rgba(130, 18, 98, ${0.32 + pulse * 0.1})`);
-        ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 22, W, 154);
-
-        ctx.save();
-        ctx.globalAlpha = 0.1 + pulse * 0.06;
-        for (let i = 0; i < 4; i++) {
-          const bx = ((i * 220 - (elapsedTime * 75) % 220) + W) % (W + 220) - 110;
-          ctx.fillStyle = i % 2 === 0 ? '#00f0ff' : '#ff2ad4';
-          ctx.beginPath();
-          ctx.moveTo(bx, 22);
-          ctx.lineTo(bx + 36, 22);
-          ctx.lineTo(bx - 24, 176);
-          ctx.lineTo(bx - 60, 176);
-          ctx.closePath();
-          ctx.fill();
+      // Đường dẫn trắng chính giữa đường hầm Wave giống hệt yt_2.jpg!
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      waveNodes.forEach((n, i) => {
+        if (i === 0) ctx.moveTo(n.x, n.y);
+        else ctx.lineTo(n.x, n.y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    } else if (activeMode === 'timing') {
+      timingBlocks.forEach((b) => {
+        if (b.x + b.w < -20 || b.x > W + 20) return;
+        drawGridBlock(b.x, b.y, b.w, b.h);
+      });
+      timingSpikes.forEach((s) => {
+        if (s.x + s.w < -20 || s.x > W + 20) return;
+        drawClassicSpike(s.x, s.y, s.w, s.h, s.dir);
+      });
+    } else if (activeMode === 'ship') {
+      corridorGates.forEach((g) => {
+        if (g.x + g.w < -30 || g.x > W + 30) return;
+        // Khối trên + 3 gai ngược (giống hệt yt_max.jpg)
+        drawGridBlock(g.x, CEIL_Y, g.w, g.topBlockH - CEIL_Y);
+        for (let k = 0; k < 3; k++) {
+          drawClassicSpike(g.x + k * 22, g.topBlockH, 22, g.spikeH, 'down');
         }
-        ctx.restore();
-
-        // Mặt đất glow
-        ctx.fillStyle = '#140a29';
-        ctx.fillRect(0, 176, W, H - 176);
-        const floorGrad = ctx.createLinearGradient(0, 176, W, 176);
-        floorGrad.addColorStop(0, '#00f0ff');
-        floorGrad.addColorStop(0.5, '#a855f7');
-        floorGrad.addColorStop(1, '#ff2ad4');
-        ctx.strokeStyle = floorGrad;
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(0, 176);
-        ctx.lineTo(W, 176);
-        ctx.stroke();
-      }
-
-      // Bục khối (1.0 trắng/đen cho Every End hoặc Prism glow cho Tiêu chuẩn)
-      timingPlatforms.forEach((plat) => {
-        if (plat.x + plat.w < -20 || plat.x > W + 20) return;
-        ctx.save();
-        if (isEveryEnd) {
-          ctx.fillStyle = '#060b1c';
-          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-          // Kẻ lưới ô 1.0 bên trong bục
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.lineWidth = 1;
-          for (let gx = plat.x + 28; gx < plat.x + plat.w; gx += 28) {
-            ctx.beginPath();
-            ctx.moveTo(gx, plat.y);
-            ctx.lineTo(gx, plat.y + plat.h);
-            ctx.stroke();
-          }
-          if (plat.h > 34) {
-            ctx.beginPath();
-            ctx.moveTo(plat.x, plat.y + 28);
-            ctx.lineTo(plat.x + plat.w, plat.y + 28);
-            ctx.stroke();
-          }
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.8;
-          ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+        // Khối dưới + 3 gai xuôi
+        drawGridBlock(g.x, g.botBlockY, g.w, FLOOR_Y - g.botBlockY);
+        for (let k = 0; k < 3; k++) {
+          drawClassicSpike(g.x + k * 22, g.botBlockY, 22, g.spikeH, 'up');
+        }
+      });
+    } else if (activeMode === 'ufo') {
+      // Chuỗi cột gai trên/dưới xen kẽ giống hệt yt_3.jpg
+      corridorGates.forEach((g) => {
+        if (g.x + g.w < -30 || g.x > W + 30) return;
+        if (g.type === 'up_pillar') {
+          const blockY = g.tipY + g.spikeH;
+          drawGridBlock(g.x, blockY, g.w, FLOOR_Y - blockY);
+          drawClassicSpike(g.x, blockY, g.w, g.spikeH, 'up');
         } else {
-          ctx.fillStyle = 'rgba(13, 8, 30, 0.92)';
-          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-
-          ctx.fillStyle = plat.hue === '#ff2ad4' ? 'rgba(255, 42, 212, 0.16)' : 'rgba(0, 240, 255, 0.15)';
-          ctx.beginPath();
-          ctx.moveTo(plat.x, plat.y);
-          ctx.lineTo(plat.x + plat.w * 0.65, plat.y);
-          ctx.lineTo(plat.x + plat.w * 0.35, plat.y + plat.h);
-          ctx.lineTo(plat.x, plat.y + plat.h);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.strokeStyle = plat.hue || '#00f0ff';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
-
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = 0.7;
-          ctx.fillRect(plat.x + 2, plat.y, plat.w - 4, 2);
+          const blockH = g.tipY - g.spikeH - CEIL_Y;
+          drawGridBlock(g.x, CEIL_Y, g.w, blockH);
+          drawClassicSpike(g.x, CEIL_Y + blockH, g.w, g.spikeH, 'down');
         }
-        ctx.restore();
       });
-
-      // Jump Pad vàng phát sáng
-      timingPads.forEach((pad) => {
-        if (pad.x + pad.w < -20 || pad.x > W + 20) return;
-        ctx.save();
-        ctx.fillStyle = pad.used ? 'rgba(255, 230, 0, 0.45)' : '#ffe600';
-        ctx.shadowColor = '#ffe600';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.arc(pad.x + pad.w / 2, pad.y, pad.w / 2, Math.PI, 0);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      });
-
-      // Jump Orbs (Vàng & Hồng) phát sáng
-      timingOrbs.forEach((orb) => {
-        if (orb.x < -30 || orb.x > W + 30) return;
-        const orbColor = orb.type === 'pink' ? '#ff38d4' : '#ffe600';
-        const ringR = orb.r + 3 + Math.sin(prismPulse * 1.4) * 2;
-        ctx.save();
-        ctx.globalAlpha = orb.used ? 0.35 : 1;
-        ctx.strokeStyle = orbColor;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, ringR, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = orbColor;
-        ctx.shadowColor = orbColor;
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, orb.r - 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(orb.x, orb.y, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      });
-
-      // Gai (1.0 đen viền trắng cho Every End hoặc pha lê neon cho Tiêu chuẩn)
-      obstacles.forEach((ob) => {
-        if (ob.x + ob.w < -20 || ob.x > W + 20) return;
-        const baseY = ob.y || 176;
-        ctx.save();
-        ctx.fillStyle = isEveryEnd ? '#050814' : '#090414';
-        ctx.strokeStyle = isEveryEnd ? '#ffffff' : (ob.color || '#00f0ff');
-        ctx.lineWidth = isEveryEnd ? 1.8 : 2;
-        ctx.beginPath();
-        ctx.moveTo(ob.x, baseY);
-        ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h);
-        ctx.lineTo(ob.x + ob.w, baseY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        if (!isEveryEnd) {
-          ctx.fillStyle = ob.color || '#00f0ff';
-          ctx.globalAlpha = 0.45;
-          ctx.beginPath();
-          ctx.moveTo(ob.x + ob.w * 0.28, baseY - 2);
-          ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h * 0.62);
-          ctx.lineTo(ob.x + ob.w * 0.72, baseY - 2);
-          ctx.closePath();
-          ctx.fill();
-        }
-        ctx.restore();
-      });
-
-      // Vệt sáng nét đứt
-      if (player.trail.length > 1) {
-        ctx.save();
-        ctx.strokeStyle = isEveryEnd ? 'rgba(255, 255, 255, 0.85)' : '#00f0ff';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([7, 6]);
-        ctx.beginPath();
-        player.trail.forEach((pt, idx) => {
-          if (idx === 0) ctx.moveTo(pt.x, pt.y);
-          else ctx.lineTo(pt.x, pt.y);
-        });
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Cube chuẩn icon Geometry Dash
-      drawGDCube(player.x, player.y, 24, player.angle);
-    } else if (activeMode === 'wave' || activeMode === 'ship' || activeMode === 'ufo') {
-      // Đường dẫn chuẩn tâm (Target Center Line) kiểu The Skill Tester để đo độ chính xác
-      if (obstacles.length > 1) {
-        ctx.save();
-        ctx.strokeStyle = 'rgba(52, 211, 153, 0.48)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        obstacles.forEach((ob, idx) => {
-          const cx = ob.x + ob.w / 2;
-          const cy = (ob.topH + ob.botY) / 2;
-          if (idx === 0) ctx.moveTo(cx, cy);
-          else ctx.lineTo(cx, cy);
-        });
-        ctx.stroke();
-        ctx.restore();
-      }
-
-      // Chướng ngại vật trên & dưới
-      ctx.fillStyle = 'rgba(166, 110, 255, 0.35)';
-      ctx.strokeStyle = '#a66eff';
-      obstacles.forEach((ob) => {
-        ctx.fillRect(ob.x, 0, ob.w, ob.topH);
-        ctx.strokeRect(ob.x, 0, ob.w, ob.topH);
-        ctx.fillRect(ob.x, ob.botY, ob.w, H - ob.botY);
-        ctx.strokeRect(ob.x, ob.botY, ob.w, H - ob.botY);
-      });
-
-      // Vệt sáng (Trail) cho Wave & Ship
-      if (player.trail.length > 1) {
-        ctx.save();
-        if (activeMode === 'ship') {
-          ctx.strokeStyle = '#ff2ad4';
-          ctx.lineWidth = 2.5;
-          ctx.setLineDash([7, 6]);
-        } else {
-          ctx.strokeStyle = '#ff9900';
-          ctx.lineWidth = 3;
-        }
-        ctx.beginPath();
-        player.trail.forEach((pt, idx) => {
-          if (idx === 0) ctx.moveTo(pt.x, pt.y);
-          else ctx.lineTo(pt.x, pt.y);
-        });
-        ctx.stroke();
-        ctx.restore();
-
-        // Hạt lửa vuông hồng/cam phía sau động cơ Ship
-        if (activeMode === 'ship') {
-          for (let i = Math.max(0, player.trail.length - 8); i < player.trail.length; i += 2) {
-            const pt = player.trail[i];
-            const ratio = i / player.trail.length;
-            ctx.fillStyle = i % 4 === 0 ? '#ff9900' : '#ff2ad4';
-            ctx.globalAlpha = 0.35 + ratio * 0.55;
-            ctx.fillRect(pt.x - 4, pt.y + ((i % 3) - 1) * 3, 4, 4);
-          }
-          ctx.globalAlpha = 1;
-        }
-      }
-
-      // Icon nhân vật
-      if (activeMode === 'ship') {
-        drawGDShip(player.x, player.y, player.angle);
-      } else {
-        ctx.fillStyle = '#ff9900';
-        ctx.beginPath();
-        ctx.moveTo(player.x + 12, player.y);
-        ctx.lineTo(player.x - 10, player.y - 9);
-        ctx.lineTo(player.x - 10, player.y + 9);
-        ctx.closePath();
-        ctx.fill();
-      }
     } else if (activeMode === 'spam_click') {
-      ctx.fillStyle = '#cbbce6';
-      ctx.font = 'bold 16px Inter, sans-serif';
-      ctx.fillText(`Tốc độ nhấp hiện tại: ${spamClicks.length} CPS  →  Điểm: ${currentScore}/100`, 30, 65);
-
-      // Cột năng lượng CPS
-      ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      ctx.fillRect(30, 90, W - 60, 36);
-      ctx.fillStyle = '#34d399';
-      ctx.fillRect(30, 90, ((W - 60) * currentScore) / 100, 36);
-    } else if (activeMode === 'rhythm') {
-      // Vạch căn nhịp
-      ctx.strokeStyle = '#ff9900';
-      ctx.lineWidth = 3;
+      const p = TIER_PARAMS[difficultyTier].spam_click;
+      const topSpikeBase = 105 - p.safeHalfGap - 18;
+      const botSpikeBase = 105 + p.safeHalfGap + 18;
+      drawGridBlock(0, CEIL_Y, W, Math.max(2, topSpikeBase - CEIL_Y));
+      drawGridBlock(0, botSpikeBase, W, Math.max(2, FLOOR_Y - botSpikeBase));
+      for (let sx = -((bgScrollX * 1.6) % 22); sx < W + 22; sx += 22) {
+        drawClassicSpike(sx, topSpikeBase, 22, 18, 'down');
+        drawClassicSpike(sx, botSpikeBase, 22, 18, 'up');
+      }
+      // Đường tâm xanh mờ + chỉ báo CPS
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.setLineDash([6, 6]);
       ctx.beginPath();
-      ctx.moveTo(110, 30);
-      ctx.lineTo(110, H - 30);
+      ctx.moveTo(0, 105);
+      ctx.lineTo(W, 105);
       ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.fillText(`CPS: ${spamClicks.length}`, 18, 44);
+    } else if (activeMode === 'rhythm') {
+      // Vạch căn nhịp trắng phát sáng
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(115, CEIL_Y + 6);
+      ctx.lineTo(115, FLOOR_Y - 6);
+      ctx.stroke();
+      ctx.restore();
 
       rhythmBeats.forEach((b) => {
+        if (b.x < -30 || b.x > W + 30) return;
+        ctx.save();
+        const col = b.hit ? '#00ff22' : b.missed ? '#ef4444' : '#ffe600';
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(b.x, H / 2, 16, 0, Math.PI * 2);
-        ctx.fillStyle = b.hit ? '#34d399' : b.missed ? '#fb7185' : '#a66eff';
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.arc(b.x, b.y, 14, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.fillStyle = col;
+        ctx.globalAlpha = b.missed ? 0.35 : 0.88;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 8.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       });
     }
 
-    // Overlay hướng dẫn / Bảng điểm Report Card kiểu The Skill Tester
-    if (gameState !== 'playing') {
-      ctx.fillStyle = 'rgba(11, 5, 23, 0.8)';
-      ctx.fillRect(0, 0, W, H);
-      ctx.textAlign = 'center';
-      if (gameState === 'idle') {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 17px Inter, sans-serif';
-        ctx.fillText('Nhấn CHUỘT, CHẠM hoặc phím SPACE để bắt đầu Skill Tester!', W / 2, H / 2 + 5);
-      } else {
-        const grade = getSkillGrade(currentScore);
-        // Huy hiệu Rank (S / A / B / C / D / F)
-        ctx.save();
-        ctx.fillStyle = 'rgba(15, 7, 32, 0.92)';
-        ctx.strokeStyle = grade.color;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(W / 2 - 155, H / 2, 28, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = grade.color;
-        ctx.font = '900 28px Inter, sans-serif';
-        ctx.fillText(grade.letter, W / 2 - 155, H / 2 + 10);
-        ctx.restore();
+    // 3. Viền trần & sàn lưới 1.0 xanh đen viền trắng + ánh tím rìa giống hệt 0:02 & yt_3.jpg
+    drawGridBlock(-2, -2, W + 4, CEIL_Y + 2);
+    drawGridBlock(-2, FLOOR_Y, W + 4, H - FLOOR_Y + 2);
 
+    const topGlow = ctx.createLinearGradient(0, 0, 0, CEIL_Y + 8);
+    topGlow.addColorStop(0, 'rgba(130, 55, 255, 0.42)');
+    topGlow.addColorStop(1, 'rgba(130, 55, 255, 0)');
+    ctx.fillStyle = topGlow;
+    ctx.fillRect(0, 0, W, CEIL_Y + 8);
+
+    const botGlow = ctx.createLinearGradient(0, H - (H - FLOOR_Y + 8), 0, H);
+    botGlow.addColorStop(0, 'rgba(130, 55, 255, 0)');
+    botGlow.addColorStop(1, 'rgba(130, 55, 255, 0.42)');
+    ctx.fillStyle = botGlow;
+    ctx.fillRect(0, FLOOR_Y - 8, W, H - FLOOR_Y + 8);
+
+    // 4. Đường quỹ đạo xanh lá liền mạch (#00ff22) + hạt vuông trắng giống hệt video!
+    if (activeMode !== 'rhythm' && player.trail.length > 1) {
+      ctx.save();
+      ctx.strokeStyle = '#00ff22';
+      ctx.lineWidth = 2.6;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      player.trail.forEach((pt, i) => {
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    player.particles.forEach((pt) => {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(pt.x - 2, pt.y - 2, 3.5, 3.5);
+    });
+
+    // 5. Vẽ nhân vật theo từng mode
+    if (activeMode === 'timing') {
+      drawSkillTesterCube(player.x, player.y, 22, player.angle);
+    } else if (activeMode === 'ship') {
+      drawSkillTesterShip(player.x, player.y, player.angle);
+    } else if (activeMode === 'wave') {
+      drawSkillTesterWave(player.x, player.y, player.angle);
+    } else if (activeMode === 'ufo' || activeMode === 'spam_click') {
+      drawSkillTesterUFO(player.x, player.y);
+    }
+
+    // 6. Thanh tiến độ mảnh ở rìa trên + Bộ đếm "TOTAL ACCURACY (%): 100" chuẩn video
+    const duration = getModeDuration(activeMode);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(16, 8, W - 235, 5);
+    ctx.fillStyle = '#00ff22';
+    ctx.fillRect(16, 8, ((W - 235) * Math.min(100, progress)) / 100, 5);
+
+    ctx.save();
+    ctx.font = '900 12px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    const accText = `TOTAL ACCURACY (%): ${currentScore}`;
+    ctx.strokeText(accText, W - 82, 15);
+    ctx.fillStyle = isColliding ? '#ff4d6d' : '#ffffff';
+    ctx.fillText(accText, W - 82, 15);
+
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.strokeText(`${Math.min(duration, elapsedTime).toFixed(1)}s/${duration}s`, W - 14, 15);
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillText(`${Math.min(duration, elapsedTime).toFixed(1)}s/${duration}s`, W - 14, 15);
+    ctx.restore();
+
+    // 7. Màn hình chờ / Tổng kết với Huy chương tròn 16 ngôi sao chuẩn The Skill Tester
+    if (gameState !== 'playing') {
+      ctx.fillStyle = 'rgba(4, 10, 30, 0.78)';
+      ctx.fillRect(0, 0, W, H);
+
+      if (gameState === 'idle') {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+        ctx.font = '900 18px Inter, sans-serif';
+        ctx.strokeText('THE SKILL TESTER — NHẤN SPACE / CHUỘT ĐỂ BẮT ĐẦU', W / 2, H / 2 - 4);
         ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 17px Inter, sans-serif';
-        ctx.fillText(`Độ chính xác: ${currentScore}%  •  Hạng ${grade.letter}`, W / 2 + 25, H / 2 - 8);
-        ctx.fillStyle = '#cbbce6';
+        ctx.fillText('THE SKILL TESTER — NHẤN SPACE / CHUỘT ĐỂ BẮT ĐẦU', W / 2, H / 2 - 4);
+
         ctx.font = '600 13px Inter, sans-serif';
-        ctx.fillText(`Cao nhất phiên: ${bestSessionScore}% — Nhấn để thử lại!`, W / 2 + 25, H / 2 + 18);
+        ctx.fillStyle = '#93c5fd';
+        ctx.fillText('Giữ 100% không va chạm để đạt huy chương PERFECT!', W / 2, H / 2 + 20);
+        ctx.restore();
+      } else {
+        // Bố cục giống yt_max.jpg: Chữ TOTAL ACCURACY (%) lớn + Huy chương sao tròn bên phải
+        const stampX = W / 2 + 135;
+        const stampY = H / 2 + 10;
+        drawRankStamp(stampX, stampY, 58, currentScore);
+
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4;
+
+        ctx.font = '900 15px Inter, sans-serif';
+        ctx.strokeText('TOTAL ACCURACY (%):', W / 2 - 75, H / 2 - 34);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('TOTAL ACCURACY (%):', W / 2 - 75, H / 2 - 34);
+
+        ctx.font = '900 42px Inter, sans-serif';
+        ctx.strokeText(`${currentScore}`, W / 2 - 75, H / 2 + 10);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(`${currentScore}`, W / 2 - 75, H / 2 + 10);
+
+        const bestRk = getSkillRank(bestSessionScore);
+        ctx.font = '700 13px Inter, sans-serif';
+        ctx.fillStyle = '#bae6fd';
+        ctx.fillText(
+          `Kỷ lục phiên: ${bestSessionScore}% (${bestRk.label}) — Nhấn để thử lại!`,
+          W / 2 - 75,
+          H / 2 + 44
+        );
+        ctx.restore();
       }
-      ctx.textAlign = 'left';
     }
   }
 
@@ -1215,7 +1104,6 @@
       };
       const upHandler = () => {
         isHolding = false;
-        orbBuffer = false;
       };
 
       wrap.addEventListener('mousedown', downHandler);
@@ -1224,7 +1112,12 @@
       window.addEventListener('touchend', upHandler);
 
       window.addEventListener('keydown', (e) => {
-        if (e.code === 'Space' && activeMode && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        if (
+          e.code === 'Space' &&
+          activeMode &&
+          document.activeElement.tagName !== 'INPUT' &&
+          document.activeElement.tagName !== 'TEXTAREA'
+        ) {
           e.preventDefault();
           if (!isHolding) {
             isHolding = true;
@@ -1235,7 +1128,6 @@
       window.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
           isHolding = false;
-          orbBuffer = false;
         }
       });
 
