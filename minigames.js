@@ -38,7 +38,7 @@
 
   const TIER_PARAMS = {
     extreme: {
-      badge: 'PRISMLINE • TẬP LUYỆN',
+      badge: 'NÂNG CAO',
       timing: {
         speed: 295,
         progressRate: 13.5,
