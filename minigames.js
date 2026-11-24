@@ -40,11 +40,11 @@
     extreme: {
       badge: 'NÂNG CAO',
       timing: {
-        speed: 410,
+        speed: 335,
         progressRate: 13.5,
-        jumpVy: -565,
-        gravity: 2800,
-        rotSpeed: 9.2,
+        jumpVy: -545,
+        gravity: 2700,
+        rotSpeed: 8.6,
         positions: [280, 480, 685, 895, 1105, 1315, 1525, 1735, 1950, 2165],
         widths: [24, 38, 26, 42, 26, 40, 44, 26, 38, 42],
         heights: [28, 32, 34, 30, 36, 34, 32, 36, 34, 36]
@@ -159,9 +159,9 @@
 
   const MODE_CONFIG = {
     timing: {
-      title: 'Bài test 1: Timing — Prismline Map (Bục khối, Jump Pad & Orb)',
+      title: 'Bài test 1: Timing — Every End 1.0 Cube (Canh mép bục & nhịp nhảy)',
       maxAttempts: 3,
-      hint: 'Nhấn Chuột / Space để nhảy lên bục khối Prism và bấm đúng nhịp các vòng Orb vàng/hồng trên không!'
+      hint: 'Nhấn Chuột / Space đúng timing mép bục 1.0, vượt cụm gai 3 và trần thấp giống đoạn đầu Every End!'
     },
     spam_click: {
       title: 'Bài test 2: Spam click (Tốc độ nhấp CPS cao & giữ tâm)',
@@ -213,57 +213,105 @@
       player.y = 164;
       player.vy = 0;
       const sx = p.speed / 260;
-      const spH = difficultyTier === 'extreme' ? 28 : 24;
       const leadX = Math.round(player.x + p.speed * WARMUP_SECONDS);
-      const loopLen = Math.round(1860 * sx);
-      const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
 
-      for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
-        const base = leadX + loopIdx * loopLen;
-        const X = (v) => base + Math.round(v * sx);
+      if (difficultyTier === 'extreme') {
+        // Map Every End (đoạn đầu): thuần Cube 1.0, gai đơn/đôi/ba, bục nhảy mép, trần thấp & đảo 1 ô
+        const spH = 26;
+        const loopLen = Math.round(1960 * sx);
+        const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
 
-        // Đoạn 1: Mở đầu Prismline — gai đơn + bục Prism nâng cao
-        obstacles.push({ x: X(0), y: 176, w: 22, h: spH, color: '#00f0ff' });
-        timingPlatforms.push({ x: X(140), y: 146, w: Math.round(110 * sx), h: 30, hue: '#00f0ff' });
-        obstacles.push({ x: X(270), y: 176, w: 22, h: spH, color: '#a855f7' });
+        for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
+          const base = leadX + loopIdx * loopLen;
+          const X = (v) => base + Math.round(v * sx);
 
-        // Đoạn 2: Hố gai + Yellow Orb timing trên không
-        obstacles.push({ x: X(395), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-        obstacles.push({ x: X(422), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-        obstacles.push({ x: X(449), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-        timingOrbs.push({ x: X(442), y: 126, r: 13, type: 'yellow', used: false });
+          // 1. Khởi đầu 1.0: gai đơn -> gai đôi sát mép
+          obstacles.push({ x: X(0), y: 176, w: 22, h: spH });
+          obstacles.push({ x: X(175), y: 176, w: 22, h: spH });
+          obstacles.push({ x: X(197), y: 176, w: 22, h: spH });
 
-        // Đoạn 3: Yellow Jump Pad bật lên trụ Prism cao + nhảy qua gai trên bục
-        timingPads.push({ x: X(590), y: 176, w: 28, h: 7, used: false });
-        timingPlatforms.push({ x: X(675), y: 118, w: Math.round(165 * sx), h: 58, hue: '#ff2ad4' });
-        obstacles.push({ x: X(752), y: 118, w: 20, h: spH - 2, color: '#00f0ff' });
+          // 2. Nhảy lên bục 1.0 -> canh mép bục nhảy qua gai sàn -> đáp lên bục thứ 2
+          timingPlatforms.push({ x: X(350), y: 148, w: Math.round(78 * sx), h: 28 });
+          obstacles.push({ x: X(452), y: 176, w: 22, h: spH });
+          timingPlatforms.push({ x: X(525), y: 148, w: Math.round(72 * sx), h: 28 });
 
-        // Đoạn 4: Bậc thang hạ xuống + cụm gai
-        timingPlatforms.push({ x: X(905), y: 146, w: Math.round(105 * sx), h: 30, hue: '#38bdf8' });
-        obstacles.push({ x: X(1045), y: 176, w: 22, h: spH, color: '#a855f7' });
-        if (difficultyTier === 'extreme') {
-          obstacles.push({ x: X(1068), y: 176, w: 20, h: spH, color: '#ff2ad4' });
+          // 3. Trần thấp (Every End signature tight ceiling) + gai sàn
+          timingPlatforms.push({ x: X(675), y: 74, w: Math.round(135 * sx), h: 32, isCeiling: true });
+          obstacles.push({ x: X(715), y: 176, w: 22, h: spH });
+          obstacles.push({ x: X(737), y: 176, w: 22, h: spH });
+
+          // 4. Triple Spike 1.0 kinh điển
+          obstacles.push({ x: X(915), y: 176, w: 21, h: spH });
+          obstacles.push({ x: X(936), y: 176, w: 21, h: spH });
+          obstacles.push({ x: X(957), y: 176, w: 21, h: spH });
+
+          // 5. Bậc thang 2 tầng + gai đặt trên đỉnh trụ
+          timingPlatforms.push({ x: X(1110), y: 148, w: Math.round(62 * sx), h: 28 });
+          timingPlatforms.push({ x: X(1210), y: 120, w: Math.round(118 * sx), h: 56 });
+          obstacles.push({ x: X(1265), y: 120, w: 20, h: 24 });
+
+          // 6. Nhảy qua hố gai dài bằng Yellow Orb 1.0 -> chuỗi đảo 1 ô
+          for (let k = 0; k < 5; k++) {
+            obstacles.push({ x: X(1405) + k * 23, y: 176, w: 22, h: spH });
+          }
+          timingOrbs.push({ x: X(1445), y: 130, r: 12, type: 'yellow', used: false });
+
+          // 7. Đảo 1.0 rời rạc trên thảm gai (edge timing)
+          timingPlatforms.push({ x: X(1570), y: 148, w: Math.round(48 * sx), h: 28 });
+          obstacles.push({ x: X(1640), y: 176, w: 22, h: spH });
+          obstacles.push({ x: X(1663), y: 176, w: 22, h: spH });
+          timingPlatforms.push({ x: X(1725), y: 148, w: Math.round(52 * sx), h: 28 });
+          obstacles.push({ x: X(1845), y: 176, w: 22, h: spH });
         }
+      } else {
+        const spH = 24;
+        const loopLen = Math.round(1860 * sx);
+        const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
 
-        // Đoạn 5: Chuỗi Pink Orb -> Yellow Orb đặc trưng Prismline qua thảm gai
-        for (let k = 0; k < 6; k++) {
-          obstacles.push({
-            x: X(1185) + k * 25,
-            y: 176,
-            w: 22,
-            h: spH,
-            color: k % 2 === 0 ? '#00f0ff' : '#ff2ad4'
-          });
+        for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
+          const base = leadX + loopIdx * loopLen;
+          const X = (v) => base + Math.round(v * sx);
+
+          // Đoạn 1: Mở đầu — gai đơn + bục nâng cao
+          obstacles.push({ x: X(0), y: 176, w: 22, h: spH, color: '#00f0ff' });
+          timingPlatforms.push({ x: X(140), y: 146, w: Math.round(110 * sx), h: 30, hue: '#00f0ff' });
+          obstacles.push({ x: X(270), y: 176, w: 22, h: spH, color: '#a855f7' });
+
+          // Đoạn 2: Hố gai + Yellow Orb timing trên không
+          obstacles.push({ x: X(395), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+          obstacles.push({ x: X(422), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+          obstacles.push({ x: X(449), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+          timingOrbs.push({ x: X(442), y: 126, r: 13, type: 'yellow', used: false });
+
+          // Đoạn 3: Yellow Jump Pad bật lên trụ cao + nhảy qua gai trên bục
+          timingPads.push({ x: X(590), y: 176, w: 28, h: 7, used: false });
+          timingPlatforms.push({ x: X(675), y: 118, w: Math.round(165 * sx), h: 58, hue: '#ff2ad4' });
+          obstacles.push({ x: X(752), y: 118, w: 20, h: spH - 2, color: '#00f0ff' });
+
+          // Đoạn 4: Bậc thang hạ xuống + cụm gai
+          timingPlatforms.push({ x: X(905), y: 146, w: Math.round(105 * sx), h: 30, hue: '#38bdf8' });
+          obstacles.push({ x: X(1045), y: 176, w: 22, h: spH, color: '#a855f7' });
+
+          // Đoạn 5: Chuỗi Pink Orb -> Yellow Orb qua thảm gai
+          for (let k = 0; k < 6; k++) {
+            obstacles.push({
+              x: X(1185) + k * 25,
+              y: 176,
+              w: 22,
+              h: spH,
+              color: k % 2 === 0 ? '#00f0ff' : '#ff2ad4'
+            });
+          }
+          timingOrbs.push({ x: X(1230), y: 132, r: 13, type: 'pink', used: false });
+          timingOrbs.push({ x: X(1320), y: 112, r: 13, type: 'yellow', used: false });
+          timingPlatforms.push({ x: X(1395), y: 138, w: Math.round(125 * sx), h: 38, hue: '#a855f7' });
+
+          // Đoạn 6: Finale — Orb vàng + gai chốt
+          obstacles.push({ x: X(1565), y: 176, w: 22, h: spH, color: '#00f0ff' });
+          obstacles.push({ x: X(1592), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+          timingOrbs.push({ x: X(1585), y: 124, r: 13, type: 'yellow', used: false });
+          obstacles.push({ x: X(1735), y: 176, w: 22, h: spH, color: '#00f0ff' });
         }
-        timingOrbs.push({ x: X(1230), y: 132, r: 13, type: 'pink', used: false });
-        timingOrbs.push({ x: X(1320), y: 112, r: 13, type: 'yellow', used: false });
-        timingPlatforms.push({ x: X(1395), y: 138, w: Math.round(125 * sx), h: 38, hue: '#a855f7' });
-
-        // Đoạn 6: Finale — Orb vàng + gai chốt
-        obstacles.push({ x: X(1565), y: 176, w: 22, h: spH, color: '#00f0ff' });
-        obstacles.push({ x: X(1592), y: 176, w: 22, h: spH, color: '#ff2ad4' });
-        timingOrbs.push({ x: X(1585), y: 124, r: 13, type: 'yellow', used: false });
-        obstacles.push({ x: X(1735), y: 176, w: 22, h: spH, color: '#00f0ff' });
       }
     } else if (mode === 'wave') {
       player.y = 105;
@@ -459,13 +507,16 @@
         }
       }
 
-      // Va chạm bục khối Prism (đứng trên mặt bục an toàn, đâm ngang cạnh trước thì thua)
+      // Va chạm bục khối (đứng trên mặt bục an toàn; chạm mặt dưới trần hoặc đâm ngang cạnh trước thì thua)
       for (const plat of timingPlatforms) {
         if (player.x + 11 > plat.x && player.x - 11 < plat.x + plat.w) {
           if (prevY + 12 <= plat.y + 10 && player.vy >= 0 && player.y + 12 >= plat.y) {
             player.y = plat.y - 12;
             player.vy = 0;
             onGround = true;
+          } else if (plat.isCeiling && prevY - 12 >= plat.y + plat.h - 10 && player.y - 12 <= plat.y + plat.h) {
+            finishAttempt(progress);
+            return;
           } else if (player.y + 10 > plat.y + 10 && player.y - 10 < plat.y + plat.h && player.x + 10 > plat.x + 4) {
             finishAttempt(progress);
             return;
@@ -742,70 +793,142 @@
     ctx.textAlign = 'left';
 
     if (activeMode === 'timing') {
-      // Nền glow Prismline chuyển sắc theo tiến độ + tia sáng lăng kính
-      const pulse = 0.5 + 0.5 * Math.sin(prismPulse);
-      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
-      bgGrad.addColorStop(0, `rgba(14, 24, 58, ${0.42 + pulse * 0.12})`);
-      bgGrad.addColorStop(0.5, `rgba(76, 20, 128, ${0.34 + pulse * 0.12})`);
-      bgGrad.addColorStop(1, `rgba(130, 18, 98, ${0.32 + pulse * 0.1})`);
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 22, W, 154);
+      const isEveryEnd = difficultyTier === 'extreme';
+      if (isEveryEnd) {
+        // Nền xanh dương đậm 1.0 + hiệu ứng Background Preview nhiều lớp đặc trưng của Every End
+        const eeBg = ctx.createLinearGradient(0, 22, 0, 176);
+        eeBg.addColorStop(0, '#07123b');
+        eeBg.addColorStop(1, '#132d7a');
+        ctx.fillStyle = eeBg;
+        ctx.fillRect(0, 22, W, 154);
 
-      // Tia sáng chéo kiểu lăng kính (Prismline deco)
-      ctx.save();
-      ctx.globalAlpha = 0.1 + pulse * 0.06;
-      for (let i = 0; i < 4; i++) {
-        const bx = ((i * 220 - (elapsedTime * 75) % 220) + W) % (W + 220) - 110;
-        ctx.fillStyle = i % 2 === 0 ? '#00f0ff' : '#ff2ad4';
+        // Lớp Background Preview (hình bóng layout sắp tới chạy parallax ở hậu cảnh)
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = '#93c5fd';
+        ctx.fillStyle = 'rgba(4, 10, 32, 0.75)';
+        ctx.lineWidth = 1;
+        const previewShift = -260;
+        timingPlatforms.forEach((plat) => {
+          const px = (plat.x + previewShift) * 0.78 + 110;
+          const py = 36 + (plat.y - 36) * 0.78;
+          const pw = plat.w * 0.78;
+          const ph = plat.h * 0.78;
+          if (px + pw < -20 || px > W + 20) return;
+          ctx.fillRect(px, py, pw, ph);
+          ctx.strokeRect(px, py, pw, ph);
+        });
+        obstacles.forEach((ob) => {
+          const ox = (ob.x + previewShift) * 0.78 + 110;
+          const oy = 36 + ((ob.y || 176) - 36) * 0.78;
+          const ow = ob.w * 0.78;
+          const oh = ob.h * 0.78;
+          if (ox + ow < -20 || ox > W + 20) return;
+          ctx.beginPath();
+          ctx.moveTo(ox, oy);
+          ctx.lineTo(ox + ow / 2, oy - oh);
+          ctx.lineTo(ox + ow, oy);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        // Mặt đất xanh đậm 1.0 viền trắng sắc nét
+        ctx.fillStyle = '#060e2e';
+        ctx.fillRect(0, 176, W, H - 176);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(bx, 22);
-        ctx.lineTo(bx + 36, 22);
-        ctx.lineTo(bx - 24, 176);
-        ctx.lineTo(bx - 60, 176);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(0, 176);
+        ctx.lineTo(W, 176);
+        ctx.stroke();
+      } else {
+        // Nền glow chuyển sắc theo tiến độ + tia sáng lăng kính
+        const pulse = 0.5 + 0.5 * Math.sin(prismPulse);
+        const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+        bgGrad.addColorStop(0, `rgba(14, 24, 58, ${0.42 + pulse * 0.12})`);
+        bgGrad.addColorStop(0.5, `rgba(76, 20, 128, ${0.34 + pulse * 0.12})`);
+        bgGrad.addColorStop(1, `rgba(130, 18, 98, ${0.32 + pulse * 0.1})`);
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 22, W, 154);
+
+        ctx.save();
+        ctx.globalAlpha = 0.1 + pulse * 0.06;
+        for (let i = 0; i < 4; i++) {
+          const bx = ((i * 220 - (elapsedTime * 75) % 220) + W) % (W + 220) - 110;
+          ctx.fillStyle = i % 2 === 0 ? '#00f0ff' : '#ff2ad4';
+          ctx.beginPath();
+          ctx.moveTo(bx, 22);
+          ctx.lineTo(bx + 36, 22);
+          ctx.lineTo(bx - 24, 176);
+          ctx.lineTo(bx - 60, 176);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Mặt đất glow
+        ctx.fillStyle = '#140a29';
+        ctx.fillRect(0, 176, W, H - 176);
+        const floorGrad = ctx.createLinearGradient(0, 176, W, 176);
+        floorGrad.addColorStop(0, '#00f0ff');
+        floorGrad.addColorStop(0.5, '#a855f7');
+        floorGrad.addColorStop(1, '#ff2ad4');
+        ctx.strokeStyle = floorGrad;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 176);
+        ctx.lineTo(W, 176);
+        ctx.stroke();
       }
-      ctx.restore();
 
-      // Mặt đất glow Prismline
-      ctx.fillStyle = '#140a29';
-      ctx.fillRect(0, 176, W, H - 176);
-      const floorGrad = ctx.createLinearGradient(0, 176, W, 176);
-      floorGrad.addColorStop(0, '#00f0ff');
-      floorGrad.addColorStop(0.5, '#a855f7');
-      floorGrad.addColorStop(1, '#ff2ad4');
-      ctx.strokeStyle = floorGrad;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(0, 176);
-      ctx.lineTo(W, 176);
-      ctx.stroke();
-
-      // Bục khối Prism nâng cao
+      // Bục khối (1.0 trắng/đen cho Every End hoặc Prism glow cho Tiêu chuẩn)
       timingPlatforms.forEach((plat) => {
         if (plat.x + plat.w < -20 || plat.x > W + 20) return;
         ctx.save();
-        ctx.fillStyle = 'rgba(13, 8, 30, 0.92)';
-        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+        if (isEveryEnd) {
+          ctx.fillStyle = '#060b1c';
+          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+          // Kẻ lưới ô 1.0 bên trong bục
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 1;
+          for (let gx = plat.x + 28; gx < plat.x + plat.w; gx += 28) {
+            ctx.beginPath();
+            ctx.moveTo(gx, plat.y);
+            ctx.lineTo(gx, plat.y + plat.h);
+            ctx.stroke();
+          }
+          if (plat.h > 34) {
+            ctx.beginPath();
+            ctx.moveTo(plat.x, plat.y + 28);
+            ctx.lineTo(plat.x + plat.w, plat.y + 28);
+            ctx.stroke();
+          }
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.8;
+          ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+        } else {
+          ctx.fillStyle = 'rgba(13, 8, 30, 0.92)';
+          ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
 
-        // Đường chéo ánh sáng bên trong khối Prism
-        ctx.fillStyle = plat.hue === '#ff2ad4' ? 'rgba(255, 42, 212, 0.16)' : 'rgba(0, 240, 255, 0.15)';
-        ctx.beginPath();
-        ctx.moveTo(plat.x, plat.y);
-        ctx.lineTo(plat.x + plat.w * 0.65, plat.y);
-        ctx.lineTo(plat.x + plat.w * 0.35, plat.y + plat.h);
-        ctx.lineTo(plat.x, plat.y + plat.h);
-        ctx.closePath();
-        ctx.fill();
+          ctx.fillStyle = plat.hue === '#ff2ad4' ? 'rgba(255, 42, 212, 0.16)' : 'rgba(0, 240, 255, 0.15)';
+          ctx.beginPath();
+          ctx.moveTo(plat.x, plat.y);
+          ctx.lineTo(plat.x + plat.w * 0.65, plat.y);
+          ctx.lineTo(plat.x + plat.w * 0.35, plat.y + plat.h);
+          ctx.lineTo(plat.x, plat.y + plat.h);
+          ctx.closePath();
+          ctx.fill();
 
-        ctx.strokeStyle = plat.hue || '#00f0ff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+          ctx.strokeStyle = plat.hue || '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
 
-        // Viền sáng mép trên
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.7;
-        ctx.fillRect(plat.x + 2, plat.y, plat.w - 4, 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.globalAlpha = 0.7;
+          ctx.fillRect(plat.x + 2, plat.y, plat.w - 4, 2);
+        }
         ctx.restore();
       });
 
@@ -850,14 +973,14 @@
         ctx.restore();
       });
 
-      // Gai pha lê phát sáng kiểu Prismline
+      // Gai (1.0 đen viền trắng cho Every End hoặc pha lê neon cho Tiêu chuẩn)
       obstacles.forEach((ob) => {
         if (ob.x + ob.w < -20 || ob.x > W + 20) return;
         const baseY = ob.y || 176;
         ctx.save();
-        ctx.fillStyle = '#090414';
-        ctx.strokeStyle = ob.color || '#00f0ff';
-        ctx.lineWidth = 2;
+        ctx.fillStyle = isEveryEnd ? '#050814' : '#090414';
+        ctx.strokeStyle = isEveryEnd ? '#ffffff' : (ob.color || '#00f0ff');
+        ctx.lineWidth = isEveryEnd ? 1.8 : 2;
         ctx.beginPath();
         ctx.moveTo(ob.x, baseY);
         ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h);
@@ -866,22 +989,23 @@
         ctx.fill();
         ctx.stroke();
 
-        // Lõi pha lê sáng bên trong gai
-        ctx.fillStyle = ob.color || '#00f0ff';
-        ctx.globalAlpha = 0.45;
-        ctx.beginPath();
-        ctx.moveTo(ob.x + ob.w * 0.28, baseY - 2);
-        ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h * 0.62);
-        ctx.lineTo(ob.x + ob.w * 0.72, baseY - 2);
-        ctx.closePath();
-        ctx.fill();
+        if (!isEveryEnd) {
+          ctx.fillStyle = ob.color || '#00f0ff';
+          ctx.globalAlpha = 0.45;
+          ctx.beginPath();
+          ctx.moveTo(ob.x + ob.w * 0.28, baseY - 2);
+          ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h * 0.62);
+          ctx.lineTo(ob.x + ob.w * 0.72, baseY - 2);
+          ctx.closePath();
+          ctx.fill();
+        }
         ctx.restore();
       });
 
-      // Vệt sáng nét đứt Prismline
+      // Vệt sáng nét đứt
       if (player.trail.length > 1) {
         ctx.save();
-        ctx.strokeStyle = '#00f0ff';
+        ctx.strokeStyle = isEveryEnd ? 'rgba(255, 255, 255, 0.85)' : '#00f0ff';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([7, 6]);
         ctx.beginPath();
