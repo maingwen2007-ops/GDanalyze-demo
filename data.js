@@ -12,10 +12,10 @@ window.GD_SKILLS = [
   },
   {
     key: 'spam_click',
-    label: 'Spam click',
-    shortLabel: 'Spam click',
-    icon: '⚡',
-    desc: 'Tốc độ nhấp liên tục cường độ cao (CPS), spam orb, mini-wave spam',
+    label: 'Ball',
+    shortLabel: 'Ball',
+    icon: '⚙️',
+    desc: 'Đảo trọng lực trên sàn/trần & bục lơ lửng chính xác trong chế độ Ball',
     defaultScore: 47,
     hasMiniGame: true
   },

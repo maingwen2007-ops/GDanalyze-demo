@@ -112,7 +112,7 @@
   function renderQuickChallengeButtons() {
     const map = [
       { key: 'timing', id: 'qc-btn-timing', label: 'Timing' },
-      { key: 'spam_click', id: 'qc-btn-spam_click', label: 'Spam click' },
+      { key: 'spam_click', id: 'qc-btn-spam_click', label: 'Ball' },
       { key: 'wave', id: 'qc-btn-wave', label: 'Wave' },
       { key: 'ship', id: 'qc-btn-ship', label: 'Ship' },
       { key: 'ufo', id: 'qc-btn-ufo', label: 'UFO' },
@@ -1163,7 +1163,7 @@
     if (shareBtn) {
       shareBtn.addEventListener('click', () => {
         const rating = getOverallRating();
-        const summary = `🎮 Hồ sơ GD ANALYZE của tôi (${rating}/100 Elo): Timing ${state.skills.timing} | Spam ${state.skills.spam_click} | Wave ${state.skills.wave} | Ship ${state.skills.ship} | UFO ${state.skills.ufo} | Nhịp ${state.skills.rhythm}`;
+        const summary = `🎮 Hồ sơ GD ANALYZE của tôi (${rating}/100 Elo): Timing ${state.skills.timing} | Ball ${state.skills.spam_click} | Wave ${state.skills.wave} | Ship ${state.skills.ship} | UFO ${state.skills.ufo} | Nhịp ${state.skills.rhythm}`;
         if (navigator.clipboard) navigator.clipboard.writeText(summary);
         showToast('Đã copy thẻ Hồ sơ kỹ năng để chia sẻ lên Discord / Facebook!');
       });

@@ -28,19 +28,20 @@
   let waveNodes = []; // Đỉnh đường hầm chéo 45° của Wave
   let corridorGates = []; // Cổng Straight Fly (Ship) & Cột xen kẽ (UFO)
   let rhythmBeats = [];
-  let spamClicks = [];
+  let ballGravityDir = 1; // 1: rơi xuống sàn, -1: hút lên trần
+  let onBallSurface = true;
+  let ballFlipBuffer = false;
 
   let lastFrameTime = 0;
   const difficultyTier = 'standard';
 
   const GAME_DURATION = 15;
-  const SPAM_CLICK_DURATION = 7;
   const WARMUP_SECONDS = 2.0;
   const CEIL_Y = 26;
   const FLOOR_Y = 184;
 
-  function getModeDuration(mode) {
-    return mode === 'spam_click' ? SPAM_CLICK_DURATION : GAME_DURATION;
+  function getModeDuration() {
+    return GAME_DURATION;
   }
 
   function getSkillRank(score) {
@@ -59,7 +60,7 @@
     standard: {
       penaltyPerSec: 25,
       timing: { speed: 240, jumpVy: -520, gravity: 2400, rotSpeed: 7.2 },
-      spam_click: { speed: 230, jumpVy: -155, gravity: 840, safeHalfGap: 40, targetCps: 7.5 },
+      spam_click: { speed: 235, gravity: 2350, maxVy: 420, rotSpeed: 9.5 },
       wave: { speed: 230, vy: 230, halfGap: 38 },
       ship: { speed: 225, upAccel: -980, downGravity: 860, maxVy: 250, gap: 68 },
       ufo: { speed: 225, jumpVy: -335, gravity: 1340, gap: 72 },
@@ -74,9 +75,9 @@
       hint: 'Nhấn Chuột / Space nhảy qua cụm gai 3 và luồn dưới trụ gai treo — va chạm sẽ trừ % Accuracy!'
     },
     spam_click: {
-      title: 'Skill Tester 2: Spam Consistency (Giữ tâm hành lang gai 7s)',
+      title: 'Skill Tester 2: Ball Gravity (Đảo trọng lực sàn/trần & bục giữa)',
       maxAttempts: 3,
-      hint: 'Nhấp liên tục đều tay trong 7 giây để giữ nhân vật nằm giữa 2 hàng gai trên/dưới mà không mất Accuracy!'
+      hint: 'Nhấn Chuột / Space khi Ball đang chạm sàn/trần/bục để đảo trọng lực né các cụm gai — va chạm sẽ trừ % Accuracy!'
     },
     wave: {
       title: 'Skill Tester 3: Wave Corridor (Đường hầm chéo 45° & vạch dẫn trắng)',
@@ -106,7 +107,9 @@
     waveNodes = [];
     corridorGates = [];
     rhythmBeats = [];
-    spamClicks = [];
+    ballGravityDir = 1;
+    onBallSurface = true;
+    ballFlipBuffer = false;
     player.trail = [];
     player.particles = [];
     player.angle = 0;
@@ -168,7 +171,43 @@
         }
       }
     } else if (mode === 'spam_click') {
-      player.y = 105;
+      // Chế độ Ball chuẩn The Skill Tester: Đảo trọng lực qua cụm gai sàn/trần và bục 1.0 giữa không trung
+      player.y = FLOOR_Y - 11;
+      ballGravityDir = 1;
+      onBallSurface = true;
+      const sx = p.speed / 235;
+      const patternLen = Math.round(1040 * sx);
+      const loops = Math.max(3, Math.ceil((p.speed * (activeSec + 0.6)) / patternLen));
+
+      for (let l = 0; l < loops; l++) {
+        const base = leadX + l * patternLen;
+        const X = (v) => base + Math.round(v * sx);
+
+        // 1. Cụm 3 gai dưới sàn -> đảo lên trần
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        }
+
+        // 2. Cụm 3 gai ngược trên trần -> đảo về sàn
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(185 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        }
+
+        // 3. Bục 1.0 lơ lửng giữa đường + gai sàn/trần ép đảo trọng lực theo bậc
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(375 + k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        }
+        timingBlocks.push({ x: X(520), y: 97, w: Math.round(145 * sx), h: 16, walkable: true });
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(540 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        }
+
+        // 4. Chuỗi đảo trọng lực nhanh cuối vòng (gai đôi sàn -> gai đôi trần)
+        timingSpikes.push({ x: X(735), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        timingSpikes.push({ x: X(757), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        timingSpikes.push({ x: X(885), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        timingSpikes.push({ x: X(907), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+      }
     } else if (mode === 'wave') {
       // Đường hầm chéo 45° liên hoàn giống hệt khung hình Wave của The Skill Tester (yt_2.jpg)
       player.y = 105;
@@ -277,9 +316,15 @@
       player.vy = p.jumpVy;
       spawnParticles(player.x - 6, player.y + 6, 4);
     } else if (activeMode === 'spam_click') {
-      spamClicks.push(performance.now());
-      player.vy = p.jumpVy;
-      spawnParticles(player.x - 6, player.y + 4, 3);
+      if (onBallSurface) {
+        ballGravityDir *= -1;
+        onBallSurface = false;
+        ballFlipBuffer = false;
+        player.vy = ballGravityDir * 85;
+        spawnParticles(player.x - 5, player.y - ballGravityDir * 9, 5);
+      } else {
+        ballFlipBuffer = true;
+      }
     } else if (activeMode === 'rhythm') {
       const targetX = 115;
       let nearest = null;
@@ -432,24 +477,66 @@
       if (player.trail.length > 65) player.trail.shift();
       player.trail.forEach((pt) => (pt.x -= dx));
     } else if (activeMode === 'spam_click') {
-      const now = performance.now();
-      spamClicks = spamClicks.filter((t) => now - t < 1000);
-      player.vy += p.gravity * dt;
-      player.vy = Math.max(-240, Math.min(240, player.vy));
+      // Vật lý Ball chuẩn Geometry Dash: Lăn trên bề mặt & đảo trọng lực giữa sàn/trần/bục
+      const prevY = player.y;
+      player.vy += ballGravityDir * p.gravity * dt;
+      player.vy = Math.max(-p.maxVy, Math.min(p.maxVy, player.vy));
       player.y += player.vy * dt;
+      player.angle += ballGravityDir * p.rotSpeed * dt;
+      onBallSurface = false;
 
-      if (player.y < CEIL_Y + 12) {
-        player.y = CEIL_Y + 12;
-        player.vy = 0;
-      }
-      if (player.y > FLOOR_Y - 12) {
-        player.y = FLOOR_Y - 12;
-        player.vy = 0;
+      timingBlocks.forEach((b) => (b.x -= dx));
+      timingSpikes.forEach((s) => (s.x -= dx));
+
+      // Đáp lên mặt trên (khi rơi xuống) hoặc mặt dưới (khi hút lên) của bục 1.0 giữa đường
+      for (const b of timingBlocks) {
+        if (player.x + 9 > b.x && player.x - 9 < b.x + b.w) {
+          if (ballGravityDir === 1 && prevY + 11 <= b.y + 10 && player.vy >= 0 && player.y + 11 >= b.y) {
+            player.y = b.y - 11;
+            player.vy = 0;
+            onBallSurface = true;
+          } else if (ballGravityDir === -1 && prevY - 11 >= b.y + b.h - 10 && player.vy <= 0 && player.y - 11 <= b.y + b.h) {
+            player.y = b.y + b.h + 11;
+            player.vy = 0;
+            onBallSurface = true;
+          } else if (player.y + 9 > b.y + 2 && player.y - 9 < b.y + b.h - 2) {
+            isColliding = true;
+          }
+        }
       }
 
-      // Ra ngoài hành lang an toàn giữa 2 hàng gai (sau giai đoạn chạy đà 1.2s) sẽ trừ Accuracy
-      if (elapsedTime > 1.2 && Math.abs(player.y - 105) > p.safeHalfGap) {
-        isColliding = true;
+      if (player.y >= FLOOR_Y - 11) {
+        player.y = FLOOR_Y - 11;
+        if (ballGravityDir === 1) {
+          player.vy = 0;
+          onBallSurface = true;
+        }
+      } else if (player.y <= CEIL_Y + 11) {
+        player.y = CEIL_Y + 11;
+        if (ballGravityDir === -1) {
+          player.vy = 0;
+          onBallSurface = true;
+        }
+      }
+
+      // Hỗ trợ buffer click ngay trước khi chạm bề mặt giống Geometry Dash
+      if (onBallSurface && ballFlipBuffer) {
+        ballGravityDir *= -1;
+        onBallSurface = false;
+        ballFlipBuffer = false;
+        player.vy = ballGravityDir * 85;
+        spawnParticles(player.x - 5, player.y - ballGravityDir * 9, 5);
+      }
+
+      // Kiểm tra chạm gai sàn & gai ngược trên trần
+      for (const s of timingSpikes) {
+        if (player.x + 7 > s.x + 4 && player.x - 7 < s.x + s.w - 4) {
+          if (s.dir === 'up') {
+            if (player.y + 9 > s.y - s.h + 6 && player.y - 9 < s.y) isColliding = true;
+          } else {
+            if (player.y - 9 < s.y + s.h - 6 && player.y + 9 > s.y) isColliding = true;
+          }
+        }
       }
 
       player.trail.push({ x: player.x, y: player.y });
@@ -687,6 +774,44 @@
     ctx.restore();
   }
 
+  function drawSkillTesterBall(cx, cy, angle) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    // Bánh răng cưa Ball 8 cánh trắng viền đen chuẩn icon Ball trong yt_1.jpg
+    const teeth = 8;
+    const outerR = 12;
+    const innerR = 8.2;
+    ctx.fillStyle = isColliding ? '#fda4af' : '#f8f7ff';
+    ctx.strokeStyle = '#090514';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    for (let i = 0; i < teeth * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const a = (i * Math.PI) / teeth;
+      if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Vòng tròn lõi tím xanh bên trong Ball
+    ctx.fillStyle = '#a5b4fc';
+    ctx.beginPath();
+    ctx.arc(0, 0, 5.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#090514';
+    ctx.beginPath();
+    ctx.arc(0, 0, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
   function drawSkillTesterUFO(cx, cy) {
     ctx.save();
     ctx.translate(cx, cy);
@@ -858,7 +983,7 @@
       });
       ctx.stroke();
       ctx.restore();
-    } else if (activeMode === 'timing') {
+    } else if (activeMode === 'timing' || activeMode === 'spam_click') {
       timingBlocks.forEach((b) => {
         if (b.x + b.w < -20 || b.x > W + 20) return;
         drawGridBlock(b.x, b.y, b.w, b.h);
@@ -895,29 +1020,6 @@
           drawClassicSpike(g.x, CEIL_Y + blockH, g.w, g.spikeH, 'down');
         }
       });
-    } else if (activeMode === 'spam_click') {
-      const p = TIER_PARAMS[difficultyTier].spam_click;
-      const topSpikeBase = 105 - p.safeHalfGap - 18;
-      const botSpikeBase = 105 + p.safeHalfGap + 18;
-      drawGridBlock(0, CEIL_Y, W, Math.max(2, topSpikeBase - CEIL_Y));
-      drawGridBlock(0, botSpikeBase, W, Math.max(2, FLOOR_Y - botSpikeBase));
-      for (let sx = -((bgScrollX * 1.6) % 22); sx < W + 22; sx += 22) {
-        drawClassicSpike(sx, topSpikeBase, 22, 18, 'down');
-        drawClassicSpike(sx, botSpikeBase, 22, 18, 'up');
-      }
-      // Đường tâm xanh mờ + chỉ báo CPS
-      ctx.save();
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.setLineDash([6, 6]);
-      ctx.beginPath();
-      ctx.moveTo(0, 105);
-      ctx.lineTo(W, 105);
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 12px Inter, sans-serif';
-      ctx.fillText(`CPS: ${spamClicks.length}`, 18, 44);
     } else if (activeMode === 'rhythm') {
       // Vạch căn nhịp trắng phát sáng
       ctx.save();
@@ -986,11 +1088,13 @@
     // 5. Vẽ nhân vật theo từng mode
     if (activeMode === 'timing') {
       drawSkillTesterCube(player.x, player.y, 22, player.angle);
+    } else if (activeMode === 'spam_click') {
+      drawSkillTesterBall(player.x, player.y, player.angle);
     } else if (activeMode === 'ship') {
       drawSkillTesterShip(player.x, player.y, player.angle);
     } else if (activeMode === 'wave') {
       drawSkillTesterWave(player.x, player.y, player.angle);
-    } else if (activeMode === 'ufo' || activeMode === 'spam_click') {
+    } else if (activeMode === 'ufo') {
       drawSkillTesterUFO(player.x, player.y);
     }
 
@@ -1093,6 +1197,7 @@
       };
       const upHandler = () => {
         isHolding = false;
+        ballFlipBuffer = false;
       };
 
       wrap.addEventListener('mousedown', downHandler);
@@ -1117,6 +1222,7 @@
       window.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
           isHolding = false;
+          ballFlipBuffer = false;
         }
       });
 
