@@ -17,6 +17,15 @@
   let player = { x: 90, y: 105, vy: 0, angle: 0, size: 16, trail: [] };
   let progress = 0; // 0 -> 100%
   let obstacles = [];
+  let timingPlatforms = [];
+  let timingOrbs = [];
+  let timingPads = [];
+  let orbBuffer = false;
+  let onGround = true;
+  let prismPulse = 0;
+  let elapsedTime = 0;
+  const GAME_DURATION = 15; // Mỗi mini-game kéo dài đúng 15 giây
+  const WARMUP_SECONDS = 2.2; // Thời gian chuẩn bị tinh thần trước chướng ngại vật đầu tiên
   let rhythmBeats = [];
   let spamClicks = [];
   let lastFrameTime = 0;
@@ -145,14 +154,14 @@
 
   const MODE_CONFIG = {
     timing: {
-      title: 'Bài test 1: Timing (Canh thời điểm nhảy qua gai)',
+      title: 'Bài test 1: Timing — Prismline Map (Bục khối, Jump Pad & Orb)',
       maxAttempts: 3,
-      hint: 'Nhấn Chuột / Space đúng lúc tiếp cận cụm gai đỏ để nhảy qua.'
+      hint: 'Nhấn Chuột / Space để nhảy lên bục khối Prism và bấm đúng nhịp các vòng Orb vàng/hồng trên không!'
     },
     spam_click: {
       title: 'Bài test 2: Spam click (Tốc độ nhấp CPS cao & giữ tâm)',
       maxAttempts: 1,
-      hint: 'Nhấp Chuột / Space liên tục thật nhanh trong 5 giây để giữ năng lượng ở mức tối đa!'
+      hint: 'Có 2 giây chuẩn bị, sau đó nhấp Chuột / Space liên tục thật nhanh trong 15 giây để giữ năng lượng ở mức tối đa!'
     },
     wave: {
       title: 'Bài test 3: Wave (Giữ để bay chéo lên 45°, nhả để lao xuống 45°)',
@@ -178,6 +187,13 @@
 
   function generateMap(mode) {
     obstacles = [];
+    timingPlatforms = [];
+    timingOrbs = [];
+    timingPads = [];
+    orbBuffer = false;
+    onGround = true;
+    prismPulse = 0;
+    elapsedTime = 0;
     rhythmBeats = [];
     spamClicks = [];
     player.trail = [];
@@ -186,59 +202,115 @@
     currentScore = 0;
 
     const p = TIER_PARAMS[difficultyTier][mode];
+    const activeSeconds = GAME_DURATION - WARMUP_SECONDS;
 
     if (mode === 'timing') {
-      player.y = 160;
+      player.y = 164;
       player.vy = 0;
-      p.positions.forEach((x, idx) => {
-        obstacles.push({
-          x,
-          w: p.widths[idx % p.widths.length],
-          h: p.heights[idx % p.heights.length]
-        });
-      });
+      const sx = p.speed / 260;
+      const spH = difficultyTier === 'extreme' ? 28 : 24;
+      const leadX = Math.round(player.x + p.speed * WARMUP_SECONDS);
+      const loopLen = Math.round(1860 * sx);
+      const loops = Math.max(2, Math.ceil((p.speed * activeSeconds) / loopLen));
+
+      for (let loopIdx = 0; loopIdx < loops; loopIdx++) {
+        const base = leadX + loopIdx * loopLen;
+        const X = (v) => base + Math.round(v * sx);
+
+        // Đoạn 1: Mở đầu Prismline — gai đơn + bục Prism nâng cao
+        obstacles.push({ x: X(0), y: 176, w: 22, h: spH, color: '#00f0ff' });
+        timingPlatforms.push({ x: X(140), y: 146, w: Math.round(110 * sx), h: 30, hue: '#00f0ff' });
+        obstacles.push({ x: X(270), y: 176, w: 22, h: spH, color: '#a855f7' });
+
+        // Đoạn 2: Hố gai + Yellow Orb timing trên không
+        obstacles.push({ x: X(395), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+        obstacles.push({ x: X(422), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+        obstacles.push({ x: X(449), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+        timingOrbs.push({ x: X(442), y: 126, r: 13, type: 'yellow', used: false });
+
+        // Đoạn 3: Yellow Jump Pad bật lên trụ Prism cao + nhảy qua gai trên bục
+        timingPads.push({ x: X(590), y: 176, w: 28, h: 7, used: false });
+        timingPlatforms.push({ x: X(675), y: 118, w: Math.round(165 * sx), h: 58, hue: '#ff2ad4' });
+        obstacles.push({ x: X(752), y: 118, w: 20, h: spH - 2, color: '#00f0ff' });
+
+        // Đoạn 4: Bậc thang hạ xuống + cụm gai
+        timingPlatforms.push({ x: X(905), y: 146, w: Math.round(105 * sx), h: 30, hue: '#38bdf8' });
+        obstacles.push({ x: X(1045), y: 176, w: 22, h: spH, color: '#a855f7' });
+        if (difficultyTier === 'extreme') {
+          obstacles.push({ x: X(1068), y: 176, w: 20, h: spH, color: '#ff2ad4' });
+        }
+
+        // Đoạn 5: Chuỗi Pink Orb -> Yellow Orb đặc trưng Prismline qua thảm gai
+        for (let k = 0; k < 6; k++) {
+          obstacles.push({
+            x: X(1185) + k * 25,
+            y: 176,
+            w: 22,
+            h: spH,
+            color: k % 2 === 0 ? '#00f0ff' : '#ff2ad4'
+          });
+        }
+        timingOrbs.push({ x: X(1230), y: 132, r: 13, type: 'pink', used: false });
+        timingOrbs.push({ x: X(1320), y: 112, r: 13, type: 'yellow', used: false });
+        timingPlatforms.push({ x: X(1395), y: 138, w: Math.round(125 * sx), h: 38, hue: '#a855f7' });
+
+        // Đoạn 6: Finale — Orb vàng + gai chốt
+        obstacles.push({ x: X(1565), y: 176, w: 22, h: spH, color: '#00f0ff' });
+        obstacles.push({ x: X(1592), y: 176, w: 22, h: spH, color: '#ff2ad4' });
+        timingOrbs.push({ x: X(1585), y: 124, r: 13, type: 'yellow', used: false });
+        obstacles.push({ x: X(1735), y: 176, w: 22, h: spH, color: '#00f0ff' });
+      }
     } else if (mode === 'wave') {
       player.y = 105;
       player.vy = 0;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.startX + i * p.spacing;
+      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
+      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
+      for (let i = 0; i < count; i++) {
+        const x = startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
           ? 62 + ((i * 43) % 82)
           : 68 + ((i * 33) % 72);
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.75);
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.5);
         obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ship') {
       player.y = 105;
       player.vy = 0;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.startX + i * p.spacing;
+      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
+      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
+      for (let i = 0; i < count; i++) {
+        const x = startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
           ? 96 + Math.sin(i * 0.85) * 32
           : 92 + Math.sin(i * 0.7) * 26;
-        const gap = Math.max(p.minGap, p.baseGap - i * 0.55);
+        const gap = Math.max(p.minGap, p.baseGap - i * 0.35);
         obstacles.push({ x, w: p.width, topH: center - gap / 2, botY: center + gap / 2 });
       }
     } else if (mode === 'ufo') {
       player.y = 100;
       player.vy = 0;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.startX + i * p.spacing;
+      const startX = Math.round(player.x + p.speed * WARMUP_SECONDS);
+      const count = Math.ceil((p.speed * (activeSeconds + 0.4)) / p.spacing);
+      for (let i = 0; i < count; i++) {
+        const x = startX + i * p.spacing;
         const center = difficultyTier === 'extreme'
           ? 64 + ((i * 45) % 78)
           : 68 + ((i * 41) % 68);
         obstacles.push({ x, w: p.width, topH: center - p.gap / 2, botY: center + p.gap / 2 });
       }
     } else if (mode === 'rhythm') {
-      let curX = 260;
-      for (let i = 0; i < p.count; i++) {
+      let curX = Math.round(110 + p.speed * WARMUP_SECONDS);
+      const maxX = Math.round(110 + p.speed * (GAME_DURATION - 0.3));
+      let idx = 0;
+      while (curX < maxX) {
         rhythmBeats.push({
           x: curX,
           hit: false,
           missed: false,
           accuracy: 0
         });
-        curX += p.spacings[i % p.spacings.length];
+        curX += p.spacings[idx % p.spacings.length];
+        idx++;
       }
     }
   }
@@ -253,7 +325,20 @@
     const p = TIER_PARAMS[difficultyTier][activeMode];
 
     if (activeMode === 'timing') {
-      if (player.y >= 158) {
+      orbBuffer = true;
+      // Kiểm tra bấm trúng Orb ngay lập tức nếu đang ở gần
+      for (const orb of timingOrbs) {
+        if (!orb.used && Math.hypot(player.x - orb.x, player.y - orb.y) <= 36) {
+          orb.used = true;
+          orbBuffer = false;
+          onGround = false;
+          player.vy = orb.type === 'pink' ? p.jumpVy * 0.84 : p.jumpVy * 1.04;
+          return;
+        }
+      }
+      if (onGround) {
+        onGround = false;
+        orbBuffer = false;
         player.vy = p.jumpVy;
       }
     } else if (activeMode === 'ufo') {
@@ -322,16 +407,80 @@
   function updatePhysics(dt) {
     if (gameState !== 'playing') return;
     const p = TIER_PARAMS[difficultyTier][activeMode];
+    elapsedTime += dt;
+    progress = Math.min(100, (elapsedTime / GAME_DURATION) * 100);
 
     if (activeMode === 'timing') {
       const speed = p.speed * dt;
-      progress = Math.min(100, progress + dt * p.progressRate);
+      prismPulse += dt * 4.5;
+      const prevY = player.y;
+
       player.vy += p.gravity * dt;
       player.y += player.vy * dt;
-      if (player.y >= 160) {
-        player.y = 160;
+      onGround = false;
+
+      // Di chuyển toàn bộ thành phần map Prismline
+      for (const plat of timingPlatforms) plat.x -= speed;
+      for (const orb of timingOrbs) orb.x -= speed;
+      for (const pad of timingPads) pad.x -= speed;
+      for (const ob of obstacles) ob.x -= speed;
+
+      // Jump Pad vàng tự động bật cao
+      for (const pad of timingPads) {
+        if (
+          !pad.used &&
+          player.x + 11 > pad.x &&
+          player.x - 11 < pad.x + pad.w &&
+          player.y + 12 >= pad.y - pad.h - 4 &&
+          player.y - 12 <= pad.y
+        ) {
+          pad.used = true;
+          player.vy = p.jumpVy * 1.24;
+          onGround = false;
+        }
+      }
+
+      // Orb buffer trên không (giống Geometry Dash)
+      if (orbBuffer) {
+        for (const orb of timingOrbs) {
+          if (!orb.used && Math.hypot(player.x - orb.x, player.y - orb.y) <= 36) {
+            orb.used = true;
+            orbBuffer = false;
+            onGround = false;
+            player.vy = orb.type === 'pink' ? p.jumpVy * 0.84 : p.jumpVy * 1.04;
+            break;
+          }
+        }
+      }
+
+      // Va chạm bục khối Prism (đứng trên mặt bục an toàn, đâm ngang cạnh trước thì thua)
+      for (const plat of timingPlatforms) {
+        if (player.x + 11 > plat.x && player.x - 11 < plat.x + plat.w) {
+          if (prevY + 12 <= plat.y + 10 && player.vy >= 0 && player.y + 12 >= plat.y) {
+            player.y = plat.y - 12;
+            player.vy = 0;
+            onGround = true;
+          } else if (player.y + 10 > plat.y + 10 && player.y - 10 < plat.y + plat.h && player.x + 10 > plat.x + 4) {
+            finishAttempt(progress);
+            return;
+          }
+        }
+      }
+
+      // Mặt đất (y = 176 -> tâm Cube ở 164)
+      if (player.y >= 164) {
+        player.y = 164;
+        player.vy = 0;
+        onGround = true;
+      }
+
+      if (onGround) {
         player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
-        player.vy = isHolding ? p.jumpVy : 0;
+        if (isHolding) {
+          onGround = false;
+          orbBuffer = false;
+          player.vy = p.jumpVy;
+        }
       } else {
         player.angle += p.rotSpeed * dt;
       }
@@ -340,22 +489,23 @@
       if (player.trail.length > 26) player.trail.shift();
       player.trail.forEach((pt) => (pt.x -= speed));
 
+      // Hitbox gai pha lê (thu gọn nhẹ giống Geometry Dash)
       for (const ob of obstacles) {
-        ob.x -= speed;
+        const baseY = ob.y || 176;
         if (
-          player.x + 12 > ob.x &&
-          player.x - 10 < ob.x + ob.w &&
-          player.y + 14 > 176 - ob.h
+          player.x + 8 > ob.x + 4 &&
+          player.x - 8 < ob.x + ob.w - 4 &&
+          player.y + 10 > baseY - ob.h + 7 &&
+          player.y - 10 < baseY
         ) {
           finishAttempt(progress);
           return;
         }
       }
       currentScore = Math.round(progress);
-      if (progress >= 100) finishAttempt(100);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
     } else if (activeMode === 'wave') {
       const speed = p.speed * dt;
-      progress = Math.min(100, progress + dt * p.progressRate);
       player.vy = isHolding ? -p.vy : p.vy;
       player.y += player.vy * dt;
       player.trail.push({ x: player.x, y: player.y });
@@ -376,10 +526,9 @@
         }
       }
       currentScore = Math.round(progress);
-      if (progress >= 100) finishAttempt(100);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
     } else if (activeMode === 'ship') {
       const speed = p.speed * dt;
-      progress = Math.min(100, progress + dt * p.progressRate);
       player.vy += (isHolding ? p.upAccel : p.downGravity) * dt;
       player.vy = Math.max(-p.maxVy, Math.min(p.maxVy, player.vy));
       player.y += player.vy * dt;
@@ -402,10 +551,9 @@
         }
       }
       currentScore = Math.round(progress);
-      if (progress >= 100) finishAttempt(100);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
     } else if (activeMode === 'ufo') {
       const speed = p.speed * dt;
-      progress = Math.min(100, progress + dt * p.progressRate);
       player.vy += p.gravity * dt;
       player.y += player.vy * dt;
 
@@ -423,36 +571,32 @@
         }
       }
       currentScore = Math.round(progress);
-      if (progress >= 100) finishAttempt(100);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
     } else if (activeMode === 'spam_click') {
-      progress = Math.min(100, progress + dt * 20); // 5 giây
       const now = performance.now();
       spamClicks = spamClicks.filter((t) => now - t < 1000);
       const cps = spamClicks.length;
-      currentScore = Math.min(100, Math.round((cps / p.targetCps) * 100));
+      const liveScore = Math.min(100, Math.round((cps / p.targetCps) * 100));
+      currentScore = elapsedTime < WARMUP_SECONDS ? Math.max(currentScore, liveScore) : liveScore;
+      if (currentScore > bestSessionScore) bestSessionScore = currentScore;
       player.y = Math.min(170, player.y + p.decay * dt);
-      if (progress >= 100) {
+      if (elapsedTime >= GAME_DURATION) {
         finishAttempt(Math.max(currentScore, bestSessionScore));
       }
     } else if (activeMode === 'rhythm') {
       const speed = p.speed * dt;
-      let allDone = true;
       rhythmBeats.forEach((b) => {
         b.x -= speed;
         if (b.x < 50 && !b.hit) {
           b.missed = true;
         }
-        if (!b.hit && !b.missed) {
-          allDone = false;
-        }
       });
+      const doneBeats = rhythmBeats.filter((b) => b.hit || b.missed);
       const totalAcc = rhythmBeats.reduce((acc, b) => acc + (b.hit ? b.accuracy : 0), 0);
-      currentScore = Math.round(totalAcc / rhythmBeats.length);
-      progress = Math.round(
-        (rhythmBeats.filter((b) => b.hit || b.missed).length / rhythmBeats.length) * 100
-      );
-      if (allDone) {
-        finishAttempt(currentScore);
+      currentScore = doneBeats.length > 0 ? Math.round(totalAcc / doneBeats.length) : 0;
+      if (elapsedTime >= GAME_DURATION) {
+        const finalAcc = rhythmBeats.length > 0 ? Math.round(totalAcc / rhythmBeats.length) : 0;
+        finishAttempt(finalAcc);
       }
     }
   }
@@ -574,37 +718,163 @@
       ctx.stroke();
     }
 
-    // Thanh tiến độ phía trên
+    // Thanh tiến độ 15 giây phía trên
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.fillRect(20, 10, W - 40, 6);
-    ctx.fillStyle = '#a66eff';
-    ctx.fillRect(20, 10, ((W - 40) * Math.min(100, progress)) / 100, 6);
+    ctx.fillRect(20, 10, W - 125, 6);
+    const progGrad = ctx.createLinearGradient(20, 0, W - 105, 0);
+    progGrad.addColorStop(0, '#00f0ff');
+    progGrad.addColorStop(0.5, '#a66eff');
+    progGrad.addColorStop(1, '#ff2ad4');
+    ctx.fillStyle = progGrad;
+    ctx.fillRect(20, 10, ((W - 125) * Math.min(100, progress)) / 100, 6);
+
+    ctx.fillStyle = '#e9d5ff';
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(`${Math.min(GAME_DURATION, elapsedTime).toFixed(1)}s / ${GAME_DURATION}s`, W - 20, 17);
+    ctx.textAlign = 'left';
 
     if (activeMode === 'timing') {
-      // Mặt đất
-      ctx.fillStyle = '#261447';
+      // Nền glow Prismline chuyển sắc theo tiến độ + tia sáng lăng kính
+      const pulse = 0.5 + 0.5 * Math.sin(prismPulse);
+      const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+      bgGrad.addColorStop(0, `rgba(14, 24, 58, ${0.42 + pulse * 0.12})`);
+      bgGrad.addColorStop(0.5, `rgba(76, 20, 128, ${0.34 + pulse * 0.12})`);
+      bgGrad.addColorStop(1, `rgba(130, 18, 98, ${0.32 + pulse * 0.1})`);
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 22, W, 154);
+
+      // Tia sáng chéo kiểu lăng kính (Prismline deco)
+      ctx.save();
+      ctx.globalAlpha = 0.1 + pulse * 0.06;
+      for (let i = 0; i < 4; i++) {
+        const bx = ((i * 220 - (elapsedTime * 75) % 220) + W) % (W + 220) - 110;
+        ctx.fillStyle = i % 2 === 0 ? '#00f0ff' : '#ff2ad4';
+        ctx.beginPath();
+        ctx.moveTo(bx, 22);
+        ctx.lineTo(bx + 36, 22);
+        ctx.lineTo(bx - 24, 176);
+        ctx.lineTo(bx - 60, 176);
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // Mặt đất glow Prismline
+      ctx.fillStyle = '#140a29';
       ctx.fillRect(0, 176, W, H - 176);
-      ctx.strokeStyle = '#a66eff';
+      const floorGrad = ctx.createLinearGradient(0, 176, W, 176);
+      floorGrad.addColorStop(0, '#00f0ff');
+      floorGrad.addColorStop(0.5, '#a855f7');
+      floorGrad.addColorStop(1, '#ff2ad4');
+      ctx.strokeStyle = floorGrad;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(0, 176);
       ctx.lineTo(W, 176);
       ctx.stroke();
 
-      // Gai đỏ
-      ctx.fillStyle = '#fb7185';
-      obstacles.forEach((ob) => {
+      // Bục khối Prism nâng cao
+      timingPlatforms.forEach((plat) => {
+        if (plat.x + plat.w < -20 || plat.x > W + 20) return;
+        ctx.save();
+        ctx.fillStyle = 'rgba(13, 8, 30, 0.92)';
+        ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+
+        // Đường chéo ánh sáng bên trong khối Prism
+        ctx.fillStyle = plat.hue === '#ff2ad4' ? 'rgba(255, 42, 212, 0.16)' : 'rgba(0, 240, 255, 0.15)';
         ctx.beginPath();
-        ctx.moveTo(ob.x, 176);
-        ctx.lineTo(ob.x + ob.w / 2, 176 - ob.h);
-        ctx.lineTo(ob.x + ob.w, 176);
+        ctx.moveTo(plat.x, plat.y);
+        ctx.lineTo(plat.x + plat.w * 0.65, plat.y);
+        ctx.lineTo(plat.x + plat.w * 0.35, plat.y + plat.h);
+        ctx.lineTo(plat.x, plat.y + plat.h);
         ctx.closePath();
         ctx.fill();
+
+        ctx.strokeStyle = plat.hue || '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(plat.x, plat.y, plat.w, plat.h);
+
+        // Viền sáng mép trên
+        ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.7;
+        ctx.fillRect(plat.x + 2, plat.y, plat.w - 4, 2);
+        ctx.restore();
       });
 
-      // Vệt sáng nét đứt hồng/tím giống Geometry Dash
+      // Jump Pad vàng phát sáng
+      timingPads.forEach((pad) => {
+        if (pad.x + pad.w < -20 || pad.x > W + 20) return;
+        ctx.save();
+        ctx.fillStyle = pad.used ? 'rgba(255, 230, 0, 0.45)' : '#ffe600';
+        ctx.shadowColor = '#ffe600';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(pad.x + pad.w / 2, pad.y, pad.w / 2, Math.PI, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Jump Orbs (Vàng & Hồng) phát sáng
+      timingOrbs.forEach((orb) => {
+        if (orb.x < -30 || orb.x > W + 30) return;
+        const orbColor = orb.type === 'pink' ? '#ff38d4' : '#ffe600';
+        const ringR = orb.r + 3 + Math.sin(prismPulse * 1.4) * 2;
+        ctx.save();
+        ctx.globalAlpha = orb.used ? 0.35 : 1;
+        ctx.strokeStyle = orbColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = orbColor;
+        ctx.shadowColor = orbColor;
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, orb.r - 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(orb.x, orb.y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Gai pha lê phát sáng kiểu Prismline
+      obstacles.forEach((ob) => {
+        if (ob.x + ob.w < -20 || ob.x > W + 20) return;
+        const baseY = ob.y || 176;
+        ctx.save();
+        ctx.fillStyle = '#090414';
+        ctx.strokeStyle = ob.color || '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ob.x, baseY);
+        ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h);
+        ctx.lineTo(ob.x + ob.w, baseY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Lõi pha lê sáng bên trong gai
+        ctx.fillStyle = ob.color || '#00f0ff';
+        ctx.globalAlpha = 0.45;
+        ctx.beginPath();
+        ctx.moveTo(ob.x + ob.w * 0.28, baseY - 2);
+        ctx.lineTo(ob.x + ob.w / 2, baseY - ob.h * 0.62);
+        ctx.lineTo(ob.x + ob.w * 0.72, baseY - 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Vệt sáng nét đứt Prismline
       if (player.trail.length > 1) {
         ctx.save();
-        ctx.strokeStyle = '#ff2ad4';
+        ctx.strokeStyle = '#00f0ff';
         ctx.lineWidth = 2.5;
         ctx.setLineDash([7, 6]);
         ctx.beginPath();
@@ -616,7 +886,7 @@
         ctx.restore();
       }
 
-      // Cube đen viền hồng/tím có họa tiết giống video
+      // Cube chuẩn icon Geometry Dash
       drawGDCube(player.x, player.y, 24, player.angle);
     } else if (activeMode === 'wave' || activeMode === 'ship' || activeMode === 'ufo') {
       // Chướng ngại vật trên & dưới
@@ -703,6 +973,27 @@
       });
     }
 
+    // Thông báo giai đoạn chuẩn bị tinh thần ở đầu mỗi lượt chơi (~2.2s)
+    if (gameState === 'playing' && elapsedTime < WARMUP_SECONDS) {
+      const rem = Math.max(0, WARMUP_SECONDS - elapsedTime);
+      ctx.save();
+      ctx.fillStyle = 'rgba(15, 7, 32, 0.72)';
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 1.5;
+      const bw = 220;
+      const bh = 28;
+      const bx = (W - bw) / 2;
+      const by = 24;
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 13px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`CHUẨN BỊ... (${rem.toFixed(1)}s)`, W / 2, by + 19);
+      ctx.restore();
+      ctx.textAlign = 'left';
+    }
+
     // Overlay hướng dẫn khi chưa bắt đầu hoặc vừa kết thúc
     if (gameState !== 'playing') {
       ctx.fillStyle = 'rgba(11, 5, 23, 0.76)';
@@ -742,6 +1033,7 @@
       };
       const upHandler = () => {
         isHolding = false;
+        orbBuffer = false;
       };
 
       wrap.addEventListener('mousedown', downHandler);
@@ -761,6 +1053,7 @@
       window.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
           isHolding = false;
+          orbBuffer = false;
         }
       });
 
