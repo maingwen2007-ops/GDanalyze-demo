@@ -973,27 +973,6 @@
       });
     }
 
-    // Thông báo giai đoạn chuẩn bị tinh thần ở đầu mỗi lượt chơi (~2.2s)
-    if (gameState === 'playing' && elapsedTime < WARMUP_SECONDS) {
-      const rem = Math.max(0, WARMUP_SECONDS - elapsedTime);
-      ctx.save();
-      ctx.fillStyle = 'rgba(15, 7, 32, 0.72)';
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 1.5;
-      const bw = 220;
-      const bh = 28;
-      const bx = (W - bw) / 2;
-      const by = 24;
-      ctx.fillRect(bx, by, bw, bh);
-      ctx.strokeRect(bx, by, bw, bh);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 13px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`CHUẨN BỊ... (${rem.toFixed(1)}s)`, W / 2, by + 19);
-      ctx.restore();
-      ctx.textAlign = 'left';
-    }
-
     // Overlay hướng dẫn khi chưa bắt đầu hoặc vừa kết thúc
     if (gameState !== 'playing') {
       ctx.fillStyle = 'rgba(11, 5, 23, 0.76)';
