@@ -40,11 +40,11 @@
     extreme: {
       badge: 'NÂNG CAO',
       timing: {
-        speed: 295,
+        speed: 410,
         progressRate: 13.5,
-        jumpVy: -540,
-        gravity: 2550,
-        rotSpeed: 7.8,
+        jumpVy: -565,
+        gravity: 2800,
+        rotSpeed: 9.2,
         positions: [280, 480, 685, 895, 1105, 1315, 1525, 1735, 1950, 2165],
         widths: [24, 38, 26, 42, 26, 40, 44, 26, 38, 42],
         heights: [28, 32, 34, 30, 36, 34, 32, 36, 34, 36]
