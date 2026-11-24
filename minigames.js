@@ -60,7 +60,7 @@
     standard: {
       penaltyPerSec: 25,
       timing: { speed: 240, jumpVy: -520, gravity: 2400, rotSpeed: 7.2 },
-      spam_click: { speed: 235, gravity: 2350, maxVy: 420, rotSpeed: 9.5 },
+      spam_click: { speed: 315, gravity: 3200, maxVy: 520, rotSpeed: 12.5, penaltyPerSec: 36 },
       wave: { speed: 230, vy: 230, halfGap: 38 },
       ship: { speed: 225, upAccel: -980, downGravity: 860, maxVy: 250, gap: 68 },
       ufo: { speed: 225, jumpVy: -335, gravity: 1340, gap: 72 },
@@ -171,42 +171,51 @@
         }
       }
     } else if (mode === 'spam_click') {
-      // Chế độ Ball chuẩn The Skill Tester: Đảo trọng lực qua cụm gai sàn/trần và bục 1.0 giữa không trung
+      // Chế độ Ball độ khó cao: Đảo trọng lực liên hoàn + chuỗi đảo mặt dưới/mặt trên 3 bục lơ lửng giữa hầm gai
       player.y = FLOOR_Y - 11;
       ballGravityDir = 1;
       onBallSurface = true;
-      const sx = p.speed / 235;
-      const patternLen = Math.round(1040 * sx);
-      const loops = Math.max(3, Math.ceil((p.speed * (activeSec + 0.6)) / patternLen));
+      const patternLen = 1360;
+      const loops = Math.max(4, Math.ceil((p.speed * (activeSec + 0.8)) / patternLen));
 
       for (let l = 0; l < loops; l++) {
         const base = leadX + l * patternLen;
-        const X = (v) => base + Math.round(v * sx);
+        const X = (v) => base + v;
 
-        // 1. Cụm 3 gai dưới sàn -> đảo lên trần
+        // Pha 1: Đảo trọng lực dồn dập Sàn -> Trần -> Sàn -> Trần -> Sàn
         for (let k = 0; k < 3; k++) {
           timingSpikes.push({ x: X(k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
         }
-
-        // 2. Cụm 3 gai ngược trên trần -> đảo về sàn
         for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(185 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+          timingSpikes.push({ x: X(125 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        }
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(250 + k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        }
+        for (let k = 0; k < 3; k++) {
+          timingSpikes.push({ x: X(375 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
         }
 
-        // 3. Bục 1.0 lơ lửng giữa đường + gai sàn/trần ép đảo trọng lực theo bậc
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(375 + k * 22), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        // Pha 2: Hầm gai kép trên + dưới, buộc phải chuyền chuẩn qua 3 đảo giữa không trung (mặt dưới A -> mặt trên B -> mặt dưới C)
+        for (let sx = 505; sx <= 855; sx += 22) {
+          timingSpikes.push({ x: X(sx), y: FLOOR_Y, w: 22, h: 22, dir: 'up' });
         }
-        timingBlocks.push({ x: X(520), y: 97, w: Math.round(145 * sx), h: 16, walkable: true });
-        for (let k = 0; k < 3; k++) {
-          timingSpikes.push({ x: X(540 + k * 22), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        for (let sx = 535; sx <= 855; sx += 22) {
+          timingSpikes.push({ x: X(sx), y: CEIL_Y, w: 22, h: 22, dir: 'down' });
         }
+        timingBlocks.push({ x: X(515), y: 66, w: 92, h: 16, walkable: true });
+        timingBlocks.push({ x: X(632), y: 136, w: 92, h: 16, walkable: true });
+        timingBlocks.push({ x: X(750), y: 66, w: 94, h: 16, walkable: true });
 
-        // 4. Chuỗi đảo trọng lực nhanh cuối vòng (gai đôi sàn -> gai đôi trần)
-        timingSpikes.push({ x: X(735), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
-        timingSpikes.push({ x: X(757), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
-        timingSpikes.push({ x: X(885), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
-        timingSpikes.push({ x: X(907), y: CEIL_Y, w: 22, h: 24, dir: 'down' });
+        // Pha 3: Trụ nhô hẹp + gai chốt tốc độ cao
+        timingBlocks.push({ x: X(985), y: FLOOR_Y - 34, w: 26, h: 34 });
+        timingSpikes.push({ x: X(985), y: FLOOR_Y - 34, w: 26, h: 22, dir: 'up' });
+
+        timingBlocks.push({ x: X(1105), y: CEIL_Y, w: 26, h: 34 });
+        timingSpikes.push({ x: X(1105), y: CEIL_Y + 34, w: 26, h: 22, dir: 'down' });
+
+        timingSpikes.push({ x: X(1225), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
+        timingSpikes.push({ x: X(1247), y: FLOOR_Y, w: 22, h: 24, dir: 'up' });
       }
     } else if (mode === 'wave') {
       // Đường hầm chéo 45° liên hoàn giống hệt khung hình Wave của The Skill Tester (yt_2.jpg)
@@ -626,7 +635,8 @@
     }
 
     if (isColliding) {
-      accuracyFloat = Math.max(0, accuracyFloat - tier.penaltyPerSec * dt);
+      const pen = p.penaltyPerSec || tier.penaltyPerSec;
+      accuracyFloat = Math.max(0, accuracyFloat - pen * dt);
     }
 
     currentScore = Math.max(0, Math.min(100, Math.round(accuracyFloat)));
