@@ -319,6 +319,11 @@ body {
   border-color: var(--border-card-hover);
 }
 
+.gd-card:focus-within {
+  position: relative;
+  z-index: 20;
+}
+
 .card-title {
   font-size: 1.32rem;
   font-weight: 700;
@@ -726,6 +731,91 @@ body {
 
 .gd-select {
   text-overflow: ellipsis;
+}
+
+/* Searchable Level Picker (replaces laggy 12,000-option <select>) */
+.gd-picker {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.gd-picker-input {
+  width: 100%;
+  padding-right: 30px;
+  text-overflow: ellipsis;
+}
+
+.gd-picker-chevron {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.gd-picker-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 260px;
+  overflow-y: auto;
+  background: #14092a;
+  border: 1px solid rgba(166, 110, 255, 0.48);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.65);
+  z-index: 50;
+  display: none;
+}
+
+.gd-picker.open .gd-picker-dropdown {
+  display: block;
+}
+
+body[data-theme="light"] .gd-picker-dropdown {
+  background: #ffffff;
+  border-color: rgba(124, 77, 255, 0.35);
+}
+
+.gd-picker-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #f3e8ff;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gd-picker-item:hover {
+  background: rgba(166, 110, 255, 0.24);
+}
+
+body[data-theme="light"] .gd-picker-item {
+  color: #1b0c38;
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.gd-picker-item-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.gd-picker-empty {
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
 }
 
 body[data-theme="light"] .gd-input,

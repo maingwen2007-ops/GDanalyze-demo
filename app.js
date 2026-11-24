@@ -170,17 +170,159 @@
     });
   }
 
+  // Bộ chọn màn chơi có tìm kiếm (chỉ render tối đa 40 kết quả để tránh giật lag khi danh sách > 11.000 màn)
+  const levelPickers = {};
+
+  function formatLevelPickerLabel(lvl) {
+    return `${lvl.name} (${lvl.official_difficulty} • ID: ${lvl.gd_level_id})`;
+  }
+
+  function syncLevelPickerValue(elementId, levelId) {
+    const picker = levelPickers[elementId];
+    if (!picker) return;
+    picker.setValue(levelId);
+  }
+
+  function initSearchableLevelPicker(elementId, levels, opts = {}) {
+    if (levelPickers[elementId]) return levelPickers[elementId];
+    const oldEl = document.getElementById(elementId);
+    if (!oldEl) return null;
+
+    const hiddenInput = document.createElement('input');
+    hiddenInput.type = 'hidden';
+    hiddenInput.id = elementId;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'gd-picker';
+
+    const textInput = document.createElement('input');
+    textInput.type = 'text';
+    textInput.className = 'gd-input gd-picker-input';
+    textInput.placeholder = opts.placeholder || 'Gõ tên màn hoặc GD ID để tìm...';
+    textInput.autocomplete = 'off';
+
+    const chevron = document.createElement('span');
+    chevron.className = 'gd-picker-chevron';
+    chevron.textContent = '▼';
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'gd-picker-dropdown';
+
+    wrapper.appendChild(textInput);
+    wrapper.appendChild(chevron);
+    wrapper.appendChild(dropdown);
+
+    oldEl.replaceWith(hiddenInput);
+    hiddenInput.insertAdjacentElement('afterend', wrapper);
+
+    const levelMap = new Map(levels.map((l) => [l.id, l]));
+
+    function setValue(val) {
+      if (!val && opts.allowEmpty) {
+        hiddenInput.value = '';
+        textInput.value = '';
+        return;
+      }
+      const found = levelMap.get(val) || (!opts.allowEmpty ? levels[0] : null);
+      if (found) {
+        hiddenInput.value = found.id;
+        textInput.value = formatLevelPickerLabel(found);
+      } else {
+        hiddenInput.value = '';
+        textInput.value = '';
+      }
+    }
+
+    function renderDropdown(query) {
+      dropdown.innerHTML = '';
+      const q = (query || '').trim().toLowerCase();
+
+      if (opts.allowEmpty) {
+        const emptyBtn = document.createElement('button');
+        emptyBtn.type = 'button';
+        emptyBtn.className = 'gd-picker-item';
+        emptyBtn.innerHTML = `<span>${opts.emptyLabel || '-- Không liên kết màn chơi --'}</span>`;
+        emptyBtn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          setValue('');
+          wrapper.classList.remove('open');
+        });
+        dropdown.appendChild(emptyBtn);
+      }
+
+      const matches = [];
+      for (let i = 0; i < levels.length; i++) {
+        const l = levels[i];
+        if (
+          !q ||
+          l.name.toLowerCase().includes(q) ||
+          String(l.gd_level_id).includes(q) ||
+          (l.official_difficulty && l.official_difficulty.toLowerCase().includes(q))
+        ) {
+          matches.push(l);
+          if (matches.length >= 40) break;
+        }
+      }
+
+      if (matches.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'gd-picker-empty';
+        emptyMsg.textContent = 'Không tìm thấy màn chơi phù hợp.';
+        dropdown.appendChild(emptyMsg);
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      matches.forEach((lvl) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gd-picker-item';
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = lvl.name;
+        const metaSpan = document.createElement('span');
+        metaSpan.className = 'gd-picker-item-meta';
+        metaSpan.textContent = `${lvl.official_difficulty} • ${lvl.gd_level_id}`;
+        btn.appendChild(nameSpan);
+        btn.appendChild(metaSpan);
+        btn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          setValue(lvl.id);
+          wrapper.classList.remove('open');
+        });
+        frag.appendChild(btn);
+      });
+      dropdown.appendChild(frag);
+    }
+
+    textInput.addEventListener('focus', () => {
+      textInput.select();
+      renderDropdown('');
+      wrapper.classList.add('open');
+    });
+
+    textInput.addEventListener('input', () => {
+      renderDropdown(textInput.value);
+      wrapper.classList.add('open');
+    });
+
+    textInput.addEventListener('blur', () => {
+      wrapper.classList.remove('open');
+      setValue(hiddenInput.value);
+    });
+
+    const api = { setValue };
+    levelPickers[elementId] = api;
+    setValue(opts.defaultValue !== undefined ? opts.defaultValue : '');
+    return api;
+  }
+
   // Render Mục 3: Màn bạn đã qua & Cập nhật Elo
   function renderPlayHistory() {
-    const select = document.getElementById('history-level-select');
-    if (select && select.options.length === 0) {
-      window.GD_LEVELS.filter((l) => !l.is_challenge).forEach((lvl) => {
-        const opt = document.createElement('option');
-        opt.value = lvl.id;
-        opt.textContent = `${lvl.name} (${lvl.official_difficulty} • ID: ${lvl.gd_level_id})`;
-        select.appendChild(opt);
-      });
-    }
+    initSearchableLevelPicker(
+      'history-level-select',
+      window.GD_LEVELS.filter((l) => !l.is_challenge),
+      { placeholder: 'Tìm tên màn hoặc GD ID...' }
+    );
 
     const listEl = document.getElementById('history-list');
     if (!listEl) return;
@@ -491,18 +633,11 @@
   }
 
   function renderTargetRoadmap() {
-    const targetSelect = document.getElementById('roadmap-target-select');
-    if (targetSelect && targetSelect.options.length === 0) {
-      window.GD_LEVELS.filter((l) => !l.is_challenge && l.overall_difficulty >= 45).forEach(
-        (lvl) => {
-          const opt = document.createElement('option');
-          opt.value = lvl.id;
-          opt.textContent = `${lvl.name} (${lvl.official_difficulty} • ID: ${lvl.gd_level_id})`;
-          targetSelect.appendChild(opt);
-        }
-      );
-      targetSelect.value = state.targetLevelId;
-    }
+    initSearchableLevelPicker(
+      'roadmap-target-select',
+      window.GD_LEVELS.filter((l) => !l.is_challenge && l.overall_difficulty >= 45),
+      { defaultValue: state.targetLevelId, placeholder: 'Tìm màn mục tiêu...' }
+    );
 
     const targetLvl =
       window.GD_LEVELS.find((l) => l.id === state.targetLevelId) ||
@@ -1175,16 +1310,17 @@
       });
     }
 
-    // Populate dropdown màn chơi trong form đăng bài diễn đàn
-    const postLevelSelect = document.getElementById('post-level-select');
-    if (postLevelSelect) {
-      window.GD_LEVELS.filter((l) => !l.is_challenge).forEach((lvl) => {
-        const opt = document.createElement('option');
-        opt.value = lvl.id;
-        opt.textContent = `${lvl.name} (ID: ${lvl.gd_level_id})`;
-        postLevelSelect.appendChild(opt);
-      });
-    }
+    // Populate dropdown màn chơi trong form đăng bài diễn đàn (tìm kiếm nhanh, không giật lag)
+    initSearchableLevelPicker(
+      'post-level-select',
+      window.GD_LEVELS.filter((l) => !l.is_challenge),
+      {
+        allowEmpty: true,
+        defaultValue: '',
+        emptyLabel: '-- Không liên kết màn chơi --',
+        placeholder: '-- Liên kết màn chơi (Gõ để tìm) --'
+      }
+    );
 
     // Kho dữ liệu 1.000 màn chơi Demon ngẫu nhiên (Tìm kiếm, Lọc hạng, Phân trang)
     let catalogPage = 1;
@@ -1262,8 +1398,7 @@
         btn.addEventListener('click', () => {
           const lid = btn.getAttribute('data-level-id');
           state.targetLevelId = lid;
-          const sel = document.getElementById('roadmap-target-select');
-          if (sel) sel.value = lid;
+          syncLevelPickerValue('roadmap-target-select', lid);
           saveState();
           renderTargetRoadmap();
           showToast('Đã đặt màn này làm mục tiêu trong Lộ trình Challenge!');
