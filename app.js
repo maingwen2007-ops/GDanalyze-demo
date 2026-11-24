@@ -1434,12 +1434,152 @@
       renderDemonCatalog();
     });
 
+    // Mục 3: Thử thách Tuần / Tháng theo thời gian thực + Chọn màn ngẫu nhiên từ kho GD_LEVELS
+    let challengeRerollSeed = 0;
+
+    function getISOWeekInfo(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+      return { year: d.getUTCFullYear(), week: weekNo };
+    }
+
+    function getEndOfWeek(date) {
+      const end = new Date(date);
+      const day = end.getDay(); // 0 = CN, 1 = T2 ... 6 = T7
+      const daysToSunday = day === 0 ? 0 : 7 - day;
+      end.setDate(end.getDate() + daysToSunday);
+      end.setHours(23, 59, 59, 999);
+      return end;
+    }
+
+    function getEndOfMonth(date) {
+      return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    function formatCountdown(ms) {
+      const totalSec = Math.max(0, Math.floor(ms / 1000));
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${days} ngày ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+    }
+
+    function seededPick(list, seed) {
+      if (!list || list.length === 0) return null;
+      const hash = Math.abs(Math.sin(seed * 9301 + 49297) * 233280);
+      return list[Math.floor(hash) % list.length];
+    }
+
+    let currentChallengeKey = '';
+
+    function renderWeeklyMonthlyChallenges(forceReroll) {
+      const grid = document.getElementById('weekly-monthly-grid');
+      if (!grid || !window.GD_LEVELS || window.GD_LEVELS.length === 0) return;
+
+      const now = new Date();
+      const iso = getISOWeekInfo(now);
+      const month = now.getMonth() + 1;
+      const year = now.getFullYear();
+      const key = `${iso.year}-W${iso.week}-M${year}-${month}-R${challengeRerollSeed}`;
+
+      if (!forceReroll && currentChallengeKey === key) {
+        updateChallengeCountdowns();
+        return;
+      }
+      currentChallengeKey = key;
+
+      const nonChallenges = window.GD_LEVELS.filter((l) => !l.is_challenge);
+      const easyMedPool = nonChallenges.filter((l) => l.diff_tier === 'easy' || l.diff_tier === 'medium');
+      const medHardPool = nonChallenges.filter((l) => l.diff_tier === 'medium' || l.diff_tier === 'hard' || l.diff_tier === 'insane');
+      const poolW = easyMedPool.length >= 2 ? easyMedPool : nonChallenges;
+      const poolM = medHardPool.length >= 2 ? medHardPool : nonChallenges;
+
+      const weekSeed = iso.year * 100 + iso.week + challengeRerollSeed * 37;
+      const monthSeed = year * 100 + month + challengeRerollSeed * 73;
+
+      const weeklyLvl1 = seededPick(poolW, weekSeed);
+      let weeklyLvl2 = seededPick(poolW, weekSeed + 19);
+      if (weeklyLvl2 && weeklyLvl1 && weeklyLvl2.id === weeklyLvl1.id) {
+        weeklyLvl2 = seededPick(poolW, weekSeed + 41);
+      }
+
+      const monthlyLvl1 = seededPick(poolM, monthSeed);
+      let monthlyLvl2 = seededPick(poolM, monthSeed + 29);
+      if (monthlyLvl2 && monthlyLvl1 && monthlyLvl2.id === monthlyLvl1.id) {
+        monthlyLvl2 = seededPick(poolM, monthSeed + 53);
+      }
+
+      const weeklyParticipants = 240 + ((weekSeed * 17) % 180);
+      const monthlyParticipants = 520 + ((monthSeed * 23) % 280);
+
+      grid.innerHTML = `
+        <div class="skill-slider-item">
+          <div class="gd-badge" style="margin-bottom: 8px;">
+            ⏳ <span id="weekly-countdown">...</span> • ${weeklyParticipants} người tham gia
+          </div>
+          <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Thử thách Tuần ${iso.week}/${iso.year}</h3>
+          <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.55;">
+            Hoàn thành 100% <strong>${weeklyLvl1.name}</strong> (${weeklyLvl1.official_difficulty} • ID: ${weeklyLvl1.gd_level_id})
+            và đạt ít nhất 65% ở <strong>${weeklyLvl2.name}</strong> (${weeklyLvl2.official_difficulty} • ID: ${weeklyLvl2.gd_level_id}).
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+            <button type="button" class="btn-secondary btn-copy-id" data-copy-id="${weeklyLvl1.gd_level_id}" style="padding: 4px 10px; font-size: 0.78rem;">📋 Copy ID: ${weeklyLvl1.gd_level_id}</button>
+            <button type="button" class="btn-secondary btn-copy-id" data-copy-id="${weeklyLvl2.gd_level_id}" style="padding: 4px 10px; font-size: 0.78rem;">📋 Copy ID: ${weeklyLvl2.gd_level_id}</button>
+          </div>
+          <span class="tag-badge">Phần thưởng: 🏅 Huy hiệu Chiến binh Tuần ${iso.week}</span>
+        </div>
+
+        <div class="skill-slider-item">
+          <div class="gd-badge" style="margin-bottom: 8px;">
+            ⏳ <span id="monthly-countdown">...</span> • ${monthlyParticipants} người tham gia
+          </div>
+          <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Mục tiêu Tháng ${month}/${year}</h3>
+          <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.55;">
+            Chinh phục 100% <strong>${monthlyLvl1.name}</strong> (${monthlyLvl1.official_difficulty} • ID: ${monthlyLvl1.gd_level_id})
+            hoặc <strong>${monthlyLvl2.name}</strong> (${monthlyLvl2.official_difficulty} • ID: ${monthlyLvl2.gd_level_id}) trong tháng ${month}.
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+            <button type="button" class="btn-secondary btn-copy-id" data-copy-id="${monthlyLvl1.gd_level_id}" style="padding: 4px 10px; font-size: 0.78rem;">📋 Copy ID: ${monthlyLvl1.gd_level_id}</button>
+            <button type="button" class="btn-secondary btn-copy-id" data-copy-id="${monthlyLvl2.gd_level_id}" style="padding: 4px 10px; font-size: 0.78rem;">📋 Copy ID: ${monthlyLvl2.gd_level_id}</button>
+          </div>
+          <span class="tag-badge">Phần thưởng: 🏆 Slayer Tháng ${month}/${year}</span>
+        </div>
+      `;
+
+      bindCopyIdButtons(grid);
+      updateChallengeCountdowns();
+    }
+
+    function updateChallengeCountdowns() {
+      const now = new Date();
+      const wEl = document.getElementById('weekly-countdown');
+      const mEl = document.getElementById('monthly-countdown');
+      if (wEl) wEl.textContent = `Còn ${formatCountdown(getEndOfWeek(now) - now)}`;
+      if (mEl) mEl.textContent = `Còn ${formatCountdown(getEndOfMonth(now) - now)}`;
+    }
+
+    document.getElementById('btn-reroll-challenges')?.addEventListener('click', () => {
+      challengeRerollSeed = Math.floor(Math.random() * 100000) + 1;
+      renderWeeklyMonthlyChallenges(true);
+      showToast('Đã đổi màn chơi ngẫu nhiên cho Thử thách Tuần & Tháng!');
+    });
+
+    setInterval(() => {
+      renderWeeklyMonthlyChallenges(false);
+    }, 1000);
+
     // Render toàn bộ giao diện lần đầu
     renderQuickChallengeButtons();
     renderSkillSliders();
     renderPlayHistory();
     renderCurrentProfileSection();
     renderRecommendationsAndRoadmap();
+    renderWeeklyMonthlyChallenges(true);
     renderDemonCatalog();
     renderForum();
     switchTab(state.activeTab || 'profile');

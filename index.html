@@ -247,27 +247,13 @@
               <div id="roadmap-steps-list" class="roadmap-steps"></div>
             </section>
 
-            <!-- Mục 3: Thử thách Tuần / Tháng & Mục tiêu cộng đồng -->
+            <!-- Mục 3: Thử thách Tuần / Tháng & Mục tiêu cộng đồng (Thời gian thực + Màn ngẫu nhiên) -->
             <section id="sec-weekly" class="gd-card">
-              <h2 class="card-title">3. Thử thách Tuần / Tháng &amp; So sánh bạn bè</h2>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
-                <div class="skill-slider-item">
-                  <div class="gd-badge" style="margin-bottom: 8px;">⏳ Còn 4 ngày • 318 người tham gia</div>
-                  <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Thử thách Tuần: Nâng cấp Timing &amp; Wave</h3>
-                  <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px;">
-                    Vượt qua Challenge "Precision Jumps I" (ID: 78234110) và đạt ít nhất 65% ở "Problematic" (ID: 7116121).
-                  </p>
-                  <span class="tag-badge">Phần thưởng: 🏅 Huy hiệu Wave &amp; Timing Tuần 46</span>
-                </div>
-                <div class="skill-slider-item">
-                  <div class="gd-badge" style="margin-bottom: 8px;">⏳ Còn 19 ngày • 642 người tham gia</div>
-                  <h3 style="font-size: 1.02rem; margin-bottom: 6px;">Mục tiêu Tháng: Medium Demon Slayer</h3>
-                  <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 10px;">
-                    Hoàn thành 100% màn "B" (ID: 34085027) hoặc "Verity" (ID: 17775654) trong vòng 30 ngày.
-                  </p>
-                  <span class="tag-badge">Phần thưởng: 🏆 Slayer Medium Demon</span>
-                </div>
+              <div class="card-title" style="flex-wrap: wrap;">
+                <span>3. Thử thách Tuần / Tháng &amp; So sánh bạn bè</span>
+                <button id="btn-reroll-challenges" type="button" class="btn-secondary" style="padding: 6px 12px; font-size: 0.82rem;">🎲 Đổi màn ngẫu nhiên</button>
               </div>
+              <div id="weekly-monthly-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;"></div>
             </section>
 
             <!-- Mục 4: Kho dữ liệu 1.000 màn chơi Demon ngẫu nhiên (Pointercrate & GDBrowser) -->
