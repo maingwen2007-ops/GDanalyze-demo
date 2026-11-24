@@ -24,12 +24,30 @@
   let onGround = true;
   let prismPulse = 0;
   let elapsedTime = 0;
+  let liveAccuracy = 100;
+  let accuracySum = 0;
+  let accuracyCount = 0;
   const GAME_DURATION = 15; // Thời lượng mặc định 15 giây
   const SPAM_CLICK_DURATION = 7; // Spam click rút ngắn còn 7 giây
   const WARMUP_SECONDS = 2.2; // Thời gian chuẩn bị tinh thần trước chướng ngại vật đầu tiên
 
   function getModeDuration(mode) {
     return mode === 'spam_click' ? SPAM_CLICK_DURATION : GAME_DURATION;
+  }
+
+  function getSkillGrade(score) {
+    if (score >= 95) return { letter: 'S', color: '#fbbf24' };
+    if (score >= 85) return { letter: 'A', color: '#34d399' };
+    if (score >= 70) return { letter: 'B', color: '#38bdf8' };
+    if (score >= 55) return { letter: 'C', color: '#a855f7' };
+    if (score >= 40) return { letter: 'D', color: '#fb923c' };
+    return { letter: 'F', color: '#fb7185' };
+  }
+
+  function recordAccuracySample(val) {
+    accuracySum += Math.max(0, Math.min(100, val));
+    accuracyCount++;
+    liveAccuracy = Math.round(accuracySum / accuracyCount);
   }
   let rhythmBeats = [];
   let spamClicks = [];
@@ -199,6 +217,9 @@
     onGround = true;
     prismPulse = 0;
     elapsedTime = 0;
+    liveAccuracy = 100;
+    accuracySum = 0;
+    accuracyCount = 0;
     rhythmBeats = [];
     spamClicks = [];
     player.trail = [];
@@ -448,11 +469,12 @@
   function updateHeaderUI() {
     const metaEl = document.getElementById('minigame-attempt-info');
     if (metaEl && activeMode) {
-      metaEl.textContent = `Lượt thử: ${attemptsUsed}/${maxAttempts} • Điểm cao nhất phiên: ${bestSessionScore}/100`;
+      const grade = getSkillGrade(bestSessionScore);
+      metaEl.textContent = `Lượt thử: ${attemptsUsed}/${maxAttempts} • Cao nhất: ${bestSessionScore}% (Hạng ${grade.letter})`;
     }
     const badgeEl = document.getElementById('minigame-tier-badge');
     if (badgeEl) {
-      badgeEl.textContent = TIER_PARAMS[difficultyTier].badge;
+      badgeEl.textContent = `SKILL TESTER • ${TIER_PARAMS[difficultyTier].badge}`;
       badgeEl.classList.toggle('extreme', difficultyTier === 'extreme');
     }
   }
@@ -577,13 +599,16 @@
         ob.x -= speed;
         if (player.x + 8 > ob.x && player.x - 8 < ob.x + ob.w) {
           if (player.y - 7 < ob.topH || player.y + 7 > ob.botY) {
-            finishAttempt(progress);
+            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
             return;
           }
+          const center = (ob.topH + ob.botY) / 2;
+          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
+          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
         }
       }
-      currentScore = Math.round(progress);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
+      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
     } else if (activeMode === 'ship') {
       const speed = p.speed * dt;
       player.vy += (isHolding ? p.upAccel : p.downGravity) * dt;
@@ -595,40 +620,46 @@
       player.trail.forEach((pt) => (pt.x -= speed));
 
       if (player.y < 14 || player.y > 196) {
-        finishAttempt(progress);
+        finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
         return;
       }
       for (const ob of obstacles) {
         ob.x -= speed;
         if (player.x + 10 > ob.x && player.x - 10 < ob.x + ob.w) {
           if (player.y - 9 < ob.topH || player.y + 9 > ob.botY) {
-            finishAttempt(progress);
+            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
             return;
           }
+          const center = (ob.topH + ob.botY) / 2;
+          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
+          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
         }
       }
-      currentScore = Math.round(progress);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
+      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
     } else if (activeMode === 'ufo') {
       const speed = p.speed * dt;
       player.vy += p.gravity * dt;
       player.y += player.vy * dt;
 
       if (player.y < 14 || player.y > 196) {
-        finishAttempt(progress);
+        finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
         return;
       }
       for (const ob of obstacles) {
         ob.x -= speed;
         if (player.x + 10 > ob.x && player.x - 10 < ob.x + ob.w) {
           if (player.y - 9 < ob.topH || player.y + 9 > ob.botY) {
-            finishAttempt(progress);
+            finishAttempt(Math.round(progress * 0.7 + liveAccuracy * 0.3));
             return;
           }
+          const center = (ob.topH + ob.botY) / 2;
+          const halfGap = Math.max(1, (ob.botY - ob.topH) / 2);
+          recordAccuracySample(100 - (Math.abs(player.y - center) / halfGap) * 45);
         }
       }
-      currentScore = Math.round(progress);
-      if (elapsedTime >= GAME_DURATION) finishAttempt(100);
+      currentScore = Math.round(progress * 0.55 + liveAccuracy * 0.45);
+      if (elapsedTime >= GAME_DURATION) finishAttempt(Math.round(60 + liveAccuracy * 0.4));
     } else if (activeMode === 'spam_click') {
       const now = performance.now();
       spamClicks = spamClicks.filter((t) => now - t < 1000);
@@ -775,20 +806,24 @@
       ctx.stroke();
     }
 
-    // Thanh tiến độ 15 giây phía trên
+    // Thanh tiến độ + HUD Accuracy & Rank Grade kiểu The Skill Tester
     ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
-    ctx.fillRect(20, 10, W - 125, 6);
-    const progGrad = ctx.createLinearGradient(20, 0, W - 105, 0);
+    ctx.fillRect(20, 10, W - 245, 6);
+    const progGrad = ctx.createLinearGradient(20, 0, W - 225, 0);
     progGrad.addColorStop(0, '#00f0ff');
     progGrad.addColorStop(0.5, '#a66eff');
-    progGrad.addColorStop(1, '#ff2ad4');
+    progGrad.addColorStop(1, '#34d399');
     ctx.fillStyle = progGrad;
-    ctx.fillRect(20, 10, ((W - 125) * Math.min(100, progress)) / 100, 6);
+    ctx.fillRect(20, 10, ((W - 245) * Math.min(100, progress)) / 100, 6);
 
     const duration = getModeDuration(activeMode);
-    ctx.fillStyle = '#e9d5ff';
+    const liveVal = activeMode === 'timing' ? currentScore : (activeMode === 'spam_click' || activeMode === 'rhythm' ? currentScore : liveAccuracy);
+    const liveGrade = getSkillGrade(liveVal);
     ctx.font = 'bold 11px Inter, sans-serif';
     ctx.textAlign = 'right';
+    ctx.fillStyle = liveGrade.color;
+    ctx.fillText(`ACC ${liveVal}% [${liveGrade.letter}]`, W - 95, 17);
+    ctx.fillStyle = '#e9d5ff';
     ctx.fillText(`${Math.min(duration, elapsedTime).toFixed(1)}s / ${duration}s`, W - 20, 17);
     ctx.textAlign = 'left';
 
@@ -1020,6 +1055,23 @@
       // Cube chuẩn icon Geometry Dash
       drawGDCube(player.x, player.y, 24, player.angle);
     } else if (activeMode === 'wave' || activeMode === 'ship' || activeMode === 'ufo') {
+      // Đường dẫn chuẩn tâm (Target Center Line) kiểu The Skill Tester để đo độ chính xác
+      if (obstacles.length > 1) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.48)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        obstacles.forEach((ob, idx) => {
+          const cx = ob.x + ob.w / 2;
+          const cy = (ob.topH + ob.botY) / 2;
+          if (idx === 0) ctx.moveTo(cx, cy);
+          else ctx.lineTo(cx, cy);
+        });
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // Chướng ngại vật trên & dưới
       ctx.fillStyle = 'rgba(166, 110, 255, 0.35)';
       ctx.strokeStyle = '#a66eff';
@@ -1104,18 +1156,38 @@
       });
     }
 
-    // Overlay hướng dẫn khi chưa bắt đầu hoặc vừa kết thúc
+    // Overlay hướng dẫn / Bảng điểm Report Card kiểu The Skill Tester
     if (gameState !== 'playing') {
-      ctx.fillStyle = 'rgba(11, 5, 23, 0.76)';
+      ctx.fillStyle = 'rgba(11, 5, 23, 0.8)';
       ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 17px Inter, sans-serif';
       ctx.textAlign = 'center';
-      const msg =
-        gameState === 'idle'
-          ? 'Nhấn CHUỘT, CHẠM hoặc phím SPACE để bắt đầu bài test!'
-          : `Kết quả lượt này: ${currentScore}/100 (Cao nhất: ${bestSessionScore}/100) — Nhấn để thử lại!`;
-      ctx.fillText(msg, W / 2, H / 2 + 5);
+      if (gameState === 'idle') {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 17px Inter, sans-serif';
+        ctx.fillText('Nhấn CHUỘT, CHẠM hoặc phím SPACE để bắt đầu Skill Tester!', W / 2, H / 2 + 5);
+      } else {
+        const grade = getSkillGrade(currentScore);
+        // Huy hiệu Rank (S / A / B / C / D / F)
+        ctx.save();
+        ctx.fillStyle = 'rgba(15, 7, 32, 0.92)';
+        ctx.strokeStyle = grade.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(W / 2 - 155, H / 2, 28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = grade.color;
+        ctx.font = '900 28px Inter, sans-serif';
+        ctx.fillText(grade.letter, W / 2 - 155, H / 2 + 10);
+        ctx.restore();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 17px Inter, sans-serif';
+        ctx.fillText(`Độ chính xác: ${currentScore}%  •  Hạng ${grade.letter}`, W / 2 + 25, H / 2 - 8);
+        ctx.fillStyle = '#cbbce6';
+        ctx.font = '600 13px Inter, sans-serif';
+        ctx.fillText(`Cao nhất phiên: ${bestSessionScore}% — Nhấn để thử lại!`, W / 2 + 25, H / 2 + 18);
+      }
       ctx.textAlign = 'left';
     }
   }
